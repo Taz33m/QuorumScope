@@ -211,9 +211,13 @@ export function evaluateGeneratedScenario(generated: GeneratedScenario): SearchA
   };
 }
 
-export function reproductionCommand(seed: number, protocol: ProtocolName | "compare" = "unsafe"): string {
+export function reproductionCommand(
+  seed: number,
+  protocol: ProtocolName | "compare" = "unsafe",
+  config: SearchConfig = defaultSearchConfig,
+): string {
   const protocolArg = protocol === "compare" ? "compare" : protocol;
-  return `npm run search -- --seed ${seed} --seeds 1 --protocol ${protocolArg} --shrink`;
+  return `npm run search -- --seed ${seed} --seeds 1 --protocol ${protocolArg} --nodes ${config.nodeCount} --ops ${config.operationCount} --clients ${config.clientCount} --read-ratio ${config.readRatio} --chaos ${config.partitionIntensity} --concurrency ${config.concurrentIntensity} --shrink`;
 }
 
 function evaluateProtocol(scenario: Scenario, protocol: ProtocolName): ProtocolSearchEvaluation {

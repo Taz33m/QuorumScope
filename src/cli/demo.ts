@@ -21,7 +21,7 @@ function loadScenario(path?: string): Scenario {
 
 function printResult(result: AnalysisResult): void {
   const verdict = result.verdict.ok ? "LINEARIZABLE" : "NOT LINEARIZABLE";
-  console.log(`\n=== ${result.protocol.toUpperCase()} :: ${verdict} ===`);
+  console.log(`\n=== ${protocolLabel(result.protocol)} :: ${verdict} ===`);
   console.log(result.scenario.description);
   console.log(
     `events=${result.metrics.events} operations=${result.metrics.operations} unavailable=${result.metrics.unavailableOperations}`,
@@ -60,4 +60,8 @@ function printResult(result: AnalysisResult): void {
   for (const node of result.finalNodes) {
     console.log(`  ${node.id}: ${node.committed.value}@${node.committed.version}`);
   }
+}
+
+function protocolLabel(protocol: ProtocolName): string {
+  return protocol === "unsafe" ? "FIRST-ACK" : "QUORUM";
 }

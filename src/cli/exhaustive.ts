@@ -57,7 +57,7 @@ console.log(`- operation patterns: ${Object.keys(result.coverage.operationPatter
 console.log("");
 console.log("Adversarial comparison:");
 console.log(
-  `- default search: seeds=${result.searchComparison.seeds}, unsafe violations=${result.searchComparison.unsafeViolations}, quorum violations=${result.searchComparison.quorumViolations}, first failure seed=${result.searchComparison.firstFailureSeed ?? "none"}`,
+  `- default search: seeds=${result.searchComparison.seeds}, first-ack violations=${result.searchComparison.unsafeViolations}, quorum violations=${result.searchComparison.quorumViolations}, first failure seed=${result.searchComparison.firstFailureSeed ?? "none"}`,
 );
 console.log(`- same witness class: ${result.searchComparison.sameWitnessClass}`);
 console.log(`- ${result.searchComparison.note}`);

@@ -52,8 +52,8 @@ console.log(`Claim: ${result.claim}`);
 
 console.log("");
 console.log("Summary:");
-console.log(`Unsafe violations: ${result.summary.unsafeViolations}`);
-console.log(`Unsafe unavailable reads/writes: ${result.summary.unsafeUnavailableOperations}`);
+console.log(`First-ack violations: ${result.summary.unsafeViolations}`);
+console.log(`First-ack unavailable reads/writes: ${result.summary.unsafeUnavailableOperations}`);
 
 function parseArgs(args: string[]): Partial<SearchConfig> {
   const parsed: Partial<SearchConfig> = {};

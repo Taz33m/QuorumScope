@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   analyzeScenario,
   defaultSearchConfig,
+  reproductionCommand,
   runBenchmark,
   runAdversarialSearch,
   splitBrainStaleReadScenario,
@@ -455,9 +456,7 @@ function AdversarialSearchPanel({
         </div>
         <div>
           <span>Reproduce</span>
-          <code>
-            npm run search -- --seed {failure?.seed ?? result.config.seed} --seeds 1 --protocol compare --shrink
-          </code>
+          <code>{reproductionCommand(failure?.seed ?? result.config.seed, "compare", result.config)}</code>
           <p>{result.claim}</p>
         </div>
       </div>

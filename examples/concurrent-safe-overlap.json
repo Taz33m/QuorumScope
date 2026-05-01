@@ -1,0 +1,41 @@
+{
+  "id": "concurrent-safe-overlap",
+  "name": "Concurrent Safe Overlap",
+  "description": "A healed three-replica register runs an overlapping write/read batch followed by a confirming read. The overlap is linearizable because the read can be ordered before the write.",
+  "seed": 3217,
+  "initialValue": "v0",
+  "nodes": ["n1", "n2", "n3"],
+  "steps": [
+    {
+      "type": "read",
+      "client": "c1",
+      "zone": 0,
+      "label": "baseline read"
+    },
+    {
+      "type": "concurrent",
+      "label": "overlapping write/read in healed topology",
+      "operations": [
+        {
+          "type": "write",
+          "client": "c2",
+          "zone": 0,
+          "value": "v1",
+          "label": "overlapping write"
+        },
+        {
+          "type": "read",
+          "client": "c1",
+          "zone": 0,
+          "label": "overlapping read"
+        }
+      ]
+    },
+    {
+      "type": "read",
+      "client": "c1",
+      "zone": 0,
+      "label": "post-overlap read"
+    }
+  ]
+}

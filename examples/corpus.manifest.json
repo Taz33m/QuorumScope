@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "split-brain-stale-read",
+      "title": "Curated split-brain stale read",
+      "fixture": "split-brain-stale-read.json",
+      "scenarioType": "curated-counterexample",
+      "protocols": ["unsafe", "quorum"],
+      "expected": {
+        "unsafe": {
+          "verdict": "violation",
+          "violationKind": "stale-read",
+          "unavailableOperations": 0
+        },
+        "quorum": {
+          "verdict": "linearizable",
+          "unavailableOperations": 1,
+          "finalValue": "v1"
+        }
+      },
+      "notes": "Replay fixture for a completed majority-side write followed by a minority-side stale read.",
+      "tags": ["curated", "stale-read", "partition", "counterexample"]
+    },
+    {
+      "id": "search-143-minimized",
+      "title": "Minimized adversarial search failure",
+      "fixture": "search-143-minimized.json",
+      "scenarioType": "generated-minimized-counterexample",
+      "protocols": ["unsafe", "quorum"],
+      "expected": {
+        "unsafe": {
+          "verdict": "violation",
+          "violationKind": "stale-read",
+          "unavailableOperations": 0
+        },
+        "quorum": {
+          "verdict": "linearizable",
+          "unavailableOperations": 1,
+          "finalValue": "v143-0-x1"
+        }
+      },
+      "notes": "Saved minimized counterexample from the default adversarial search seed.",
+      "tags": ["generated", "minimized", "stale-read", "partition", "counterexample"]
+    },
+    {
+      "id": "concurrent-safe-overlap",
+      "title": "Concurrent safe overlap",
+      "fixture": "concurrent-safe-overlap.json",
+      "scenarioType": "concurrent-safe-history",
+      "protocols": ["unsafe", "quorum"],
+      "expected": {
+        "unsafe": {
+          "verdict": "linearizable",
+          "unavailableOperations": 0,
+          "finalValue": "v1"
+        },
+        "quorum": {
+          "verdict": "linearizable",
+          "unavailableOperations": 0,
+          "finalValue": "v1"
+        }
+      },
+      "notes": "A same-start overlapping read/write history that remains linearizable under both included protocols.",
+      "tags": ["concurrent", "safe", "witness", "single-key"]
+    }
+  ]
+}

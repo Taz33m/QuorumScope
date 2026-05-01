@@ -144,6 +144,7 @@ export function runBoundedExhaustive(config: Partial<ExhaustiveConfig> = {}): Ex
       scenario,
       caseId,
       scenarioHash,
+      config: normalized,
       violation: unsafeViolation,
       witness: unsafeVerdict.witness,
       unavailableOperations: unsafeSimulation.metrics.unavailableOperations,
@@ -153,6 +154,7 @@ export function runBoundedExhaustive(config: Partial<ExhaustiveConfig> = {}): Ex
       scenario,
       caseId,
       scenarioHash,
+      config: normalized,
       violation: quorumViolation,
       witness: quorumVerdict.witness,
       unavailableOperations: quorumSimulation.metrics.unavailableOperations,
@@ -402,6 +404,7 @@ function updateProtocolSummary(
     scenario: Scenario;
     caseId: string;
     scenarioHash: string;
+    config: ExhaustiveConfig;
     violation: boolean;
     witness?: LinearizabilityWitness;
     unavailableOperations: number;
@@ -428,7 +431,7 @@ function updateProtocolSummary(
       analysis,
       minimized: analysis.minimizedFailure,
       witness: analysis.verdict.witness,
-      reproductionCommand: `npm run exhaustive -- --case ${input.caseId} --show`,
+      reproductionCommand: `npm run exhaustive -- --case ${input.caseId} --max-ops ${input.config.maxOperations} --topology ${input.config.maxTopologyChanges} --clients ${input.config.clientCount} --seed ${input.config.seed} ${input.config.includeConcurrent ? "" : "--no-concurrency " }--show`.replace(/\s+/g, " ").trim(),
     };
   }
   return next;
