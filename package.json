@@ -10,6 +10,7 @@
     "test": "vitest run",
     "demo": "node --import tsx src/cli/demo.ts",
     "corpus": "node --import tsx src/cli/corpus.ts",
+    "exhaustive": "node --import tsx src/cli/exhaustive.ts",
     "bench": "node --import tsx src/cli/bench.ts",
     "search": "node --import tsx src/cli/search.ts",
     "search:first-ack": "node --import tsx src/cli/search.ts --protocol unsafe",

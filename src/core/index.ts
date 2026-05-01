@@ -1,5 +1,19 @@
 export { analyzeScenario } from "./analyze";
 export { runBenchmark, runSearchBenchmark, buildBenchmarkScenario } from "./benchmark";
+export {
+  defaultExhaustiveConfig,
+  findExhaustiveCase,
+  hashScenario,
+  normalizeExhaustiveConfig,
+  runBoundedExhaustive,
+  type ExhaustiveCaseEvaluation,
+  type ExhaustiveConfig,
+  type ExhaustiveCoverage,
+  type ExhaustiveProtocolSummary,
+  type ExhaustiveResult,
+  type ExhaustiveSearchComparison,
+  type ExhaustiveViolation,
+} from "./exhaustive";
 export { fixtures, splitBrainStaleReadScenario } from "./fixtures";
 export { checkLinearizability } from "./linearizability";
 export {

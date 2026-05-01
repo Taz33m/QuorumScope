@@ -1,6 +1,6 @@
 # QuorumScope
 
-QuorumScope is a deterministic fault lab for a single replicated register. It can replay a curated split-brain fixture, generate bounded adversarial partition schedules, shrink discovered failures, and check whether every successful read is linearizable.
+QuorumScope is a deterministic fault lab for a single replicated register. It can replay curated counterexamples, generate bounded adversarial partition schedules, exhaustively enumerate a tiny finite scenario model, shrink discovered failures, and check whether every successful read is linearizable.
 
 ## Technical Thesis
 
@@ -19,6 +19,8 @@ The default UI shows both paths:
 3. The minimized failing scenario loaded into the same trace workbench.
 4. A quorum comparison over the same generated scenario.
 
+The CLI adds a bounded exhaustive explorer for a much smaller model. It is intentionally separate from the UI because its main artifact is coverage accounting, not animation.
+
 ## Architecture
 
 - `src/core/simulator.ts`: deterministic event simulator for partitions, concurrent operation batches, reads, writes, acknowledgements, commits, and aborts.
@@ -26,8 +28,9 @@ The default UI shows both paths:
 - `src/core/linearizability.ts`: backtracking single-register linearizability checker using `BigInt` state masks.
 - `src/core/shrinker.ts`: greedy counterexample reducer over scenario steps.
 - `src/core/search.ts`: seeded adversarial scenario generator, search runner, shrink integration, and protocol comparison.
+- `src/core/exhaustive.ts`: tiny bounded scenario-space explorer with coverage reporting.
 - `src/core/benchmark.ts`: deterministic seeded benchmark generator for 2/3 partition stale-read probes.
-- `src/cli`: CLI demo, corpus replay, search, and benchmark commands.
+- `src/cli`: CLI demo, corpus replay, exhaustive explorer, search, and benchmark commands.
 - `src/App.tsx`: Vite React trace workbench over the core engine output.
 - `examples/split-brain-stale-read.json`: runnable scenario fixture.
 
@@ -40,6 +43,35 @@ The checker filters successful operations, builds real-time predecessor constrai
 The search engine uses a seeded generator to produce ordinary `Scenario` objects. Each scenario is small and replayable: exact-cover partitions, bounded operations, deterministic waits, optional overlapping client batches, majority-side writes, minority-side reads, and a few extra read/write/heal steps. The runner executes the same scenario under first-ack and quorum, checks both histories, and shrinks any failing first-ack counterexample with the same simulator/checker oracle used by the tests.
 
 The current generator is adversarially biased toward quorum-boundary split-brain schedules. It is a bounded search/regression harness, not an exhaustive model checker.
+
+## Tiny Exhaustive Explorer
+
+```bash
+npm run exhaustive
+```
+
+The exhaustive command enumerates every scenario inside a deliberately tiny finite model:
+
+- 3 replicas
+- 2 clients
+- one key
+- `v0` initial value and bounded generated writes
+- healed topology plus canonical 1/2 partitions
+- up to 3 returned operations
+- up to 2 topology changes
+- optional one overlapping read/write batch
+- deterministic simulator timing per enumerated case
+
+Current local output for the default model:
+
+| Protocol | Terminal histories | Violations | Stale-read witnesses | Unavailable ops |
+| --- | ---: | ---: | ---: | ---: |
+| First-ack | 804 | 134 | 122 | 0 |
+| Quorum | 804 | 0 | 0 | 756 |
+
+This is exhaustive only over the declared scenario grammar and bounds. It does not enumerate arbitrary message timings, arbitrary client schedules, real network behavior, or larger systems.
+
+Adversarial search and exhaustive exploration answer different questions. Search samples larger biased schedules and quickly finds a known failure class. The exhaustive explorer checks every case in a tiny finite model and reports the denominator.
 
 ## Run
 
@@ -56,6 +88,7 @@ Open `http://127.0.0.1:5173/`.
 npm test
 npm run typecheck
 npm run build
+npm run exhaustive
 ```
 
 ## CLI Demo
@@ -94,6 +127,8 @@ npm run search
 npm run search:first-ack
 npm run search:compare
 npm run search -- --seed 143 --seeds 1 --protocol compare --shrink
+npm run exhaustive
+npm run exhaustive -- --case ex-000023 --show
 ```
 
 Search output includes:
@@ -107,6 +142,17 @@ Search output includes:
 - reproduction command
 - quorum comparison
 - bounded-search disclaimer
+
+Exhaustive output includes:
+
+- finite model bounds
+- prefixes explored
+- terminal histories checked
+- coverage buckets
+- first reported stale-read counterexample
+- minimized step count
+- reproduction command
+- bounded-claim disclaimer
 
 Example reproduction command:
 
@@ -137,13 +183,15 @@ The corpus command replays every JSON scenario in `examples/` under both protoco
 - No full Raft, Paxos, leader election, retries, anti-entropy, read repair, durable storage, message loss, or real networking.
 - Scenarios can include overlapping operation batches, but QuorumScope does not exhaustively enumerate all possible concurrent schedules.
 - Search scenarios are bounded and adversarially biased; this is not exhaustive model checking.
-- Quorum results mean “zero violations in this bounded generated corpus under the modeled assumptions,” not universal correctness.
+- The exhaustive explorer is exhaustive only inside the tiny declared scenario model; it does not enumerate arbitrary message timings or all possible distributed executions.
+- Quorum results mean “zero violations in the stated bounded corpus/model under the modeled assumptions,” not universal correctness.
 - The UI is a trace/search workbench, not a generic distributed-systems playground.
 
 ## Future Work
 
 - Add scenario JSON validation and a scenario picker.
 - Add message drops, delayed commits, finer-grained schedule exploration, and read repair.
+- Add manifest-driven corpus expectations for safe and invalid fixtures.
 - Add checker performance benchmarks over increasing history sizes.
 - Add exportable proof/trace artifacts.
 
