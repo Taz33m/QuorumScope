@@ -1,0 +1,31 @@
+{
+  "id": "search-143-0-minimized",
+  "name": "Generated search scenario 143:0 (minimized)",
+  "description": "Minimized first-ack stale-read counterexample discovered by the bounded adversarial search. This is a replay fixture, not an exhaustive proof.",
+  "seed": 143,
+  "initialValue": "v0",
+  "nodes": ["n1", "n2", "n3", "n4", "n5"],
+  "steps": [
+    {
+      "type": "partition",
+      "groups": [
+        ["n1", "n2"],
+        ["n3", "n4", "n5"]
+      ],
+      "label": "generated 2/3 partition"
+    },
+    {
+      "type": "write",
+      "client": "c1",
+      "zone": 1,
+      "value": "v143-0-x1",
+      "label": "generated write 1"
+    },
+    {
+      "type": "read",
+      "client": "c1",
+      "zone": 0,
+      "label": "generated read 4"
+    }
+  ]
+}

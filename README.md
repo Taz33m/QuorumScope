@@ -27,7 +27,7 @@ The default UI shows both paths:
 - `src/core/shrinker.ts`: greedy counterexample reducer over scenario steps.
 - `src/core/search.ts`: seeded adversarial scenario generator, search runner, shrink integration, and protocol comparison.
 - `src/core/benchmark.ts`: deterministic seeded benchmark generator for 2/3 partition stale-read probes.
-- `src/cli`: CLI demo, search, and benchmark commands.
+- `src/cli`: CLI demo, corpus replay, search, and benchmark commands.
 - `src/App.tsx`: Vite React trace workbench over the core engine output.
 - `examples/split-brain-stale-read.json`: runnable scenario fixture.
 
@@ -62,6 +62,7 @@ npm run build
 
 ```bash
 npm run demo
+npm run corpus
 npm run demo -- examples/split-brain-stale-read.json
 ```
 
@@ -112,6 +113,14 @@ Example reproduction command:
 ```bash
 npm run search -- --seed 143 --seeds 1 --protocol compare --shrink
 ```
+
+## Regression Corpus
+
+```bash
+npm run corpus
+```
+
+The corpus command replays every JSON scenario in `examples/` under both protocols. It is intentionally small: curated split-brain plus a minimized counterexample saved from seed `143`. The expected bounded result is first-ack stale-read violations and zero quorum violations, with quorum unavailability reported as the tradeoff.
 
 ## Browser Demo Path
 
