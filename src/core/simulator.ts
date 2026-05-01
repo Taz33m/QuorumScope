@@ -5,6 +5,8 @@ import type {
   EventRecord,
   NodeState,
   OperationRecord,
+  OperationScenarioStep,
+  OperationStatus,
   ProtocolName,
   RegisterValue,
   Scenario,
@@ -20,6 +22,56 @@ interface TimedReplicaRequest {
 }
 
 interface TimedReplicaResponse extends ReplicaResponse, TimedReplicaRequest {}
+
+interface PendingOperation {
+  opId: string;
+  stepIndex: number;
+  command: OperationScenarioStep;
+  start: number;
+  end: number;
+  status: OperationStatus;
+  contacted: string[];
+  quorumRequired: number;
+  versionedValue: VersionedValue;
+  requests: TimedReplicaRequest[];
+  responses: TimedReplicaResponse[];
+}
+
+type BatchAction =
+  | {
+      kind: "deliver";
+      time: number;
+      order: number;
+      pending: PendingOperation;
+      request: TimedReplicaRequest;
+    }
+  | {
+      kind: "ack";
+      time: number;
+      order: number;
+      pending: PendingOperation;
+      request: TimedReplicaRequest;
+    }
+  | {
+      kind: "commit";
+      time: number;
+      order: number;
+      pending: PendingOperation;
+      request: TimedReplicaRequest;
+    }
+  | {
+      kind: "abort";
+      time: number;
+      order: number;
+      pending: PendingOperation;
+      request: TimedReplicaRequest;
+    }
+  | {
+      kind: "complete";
+      time: number;
+      order: number;
+      pending: PendingOperation;
+    };
 
 export function simulateScenario(scenario: Scenario, protocolName: ProtocolName): SimulationResult {
   const protocol = getProtocol(protocolName);
@@ -51,63 +103,169 @@ export function simulateScenario(scenario: Scenario, protocolName: ProtocolName)
     note: `${scenario.name} using ${protocolName} protocol`,
   });
 
-  const sortedResponses = (
-    opId: string,
-    kind: "read" | "write",
-    contacted: string[],
-    value: VersionedValue,
-  ): TimedReplicaResponse[] => {
-    const requests: TimedReplicaRequest[] = [];
-    for (const target of contacted) {
-      const deliverAt = now + rng.int(3, 9);
-      const ackAt = deliverAt + rng.int(2, 8);
-      pushEvent({
-        time: now,
-        type: "send",
-        opId,
-        source: "client",
-        target,
-        value: kind === "write" ? value.value : undefined,
-        version: kind === "write" ? value.version : undefined,
-        note: `${protocol.requestVerb(kind)} sent to ${target}`,
-      });
-      requests.push({ nodeId: target, deliverAt, ackAt });
+  const executeOperationBatch = (
+    commands: readonly OperationScenarioStep[],
+    stepIndex: number,
+    batchLabel?: string,
+  ) => {
+    if (commands.length === 0) {
+      throw new Error("Concurrent scenario step must include at least one operation.");
     }
 
-    const responses: TimedReplicaResponse[] = [];
-    const deliveryOrder = [...requests].sort(
-      (a, b) => a.deliverAt - b.deliverAt || a.nodeId.localeCompare(b.nodeId),
-    );
-    for (const request of deliveryOrder) {
-      const node = mustGetNode(nodes, request.nodeId);
-      const response =
-        kind === "write"
-          ? protocol.applyWriteRequest(node, value, opId)
-          : protocol.applyReadRequest(node);
-      pushEvent({
-        time: request.deliverAt,
-        type: "deliver",
-        opId,
-        source: "client",
-        target: request.nodeId,
-        value: response.value,
-        version: response.version,
-        note: `${request.nodeId} handled ${protocol.requestVerb(kind)}`,
+    const start = now + 1;
+    now = start;
+    const pendingOperations = commands.map((command) => {
+      const opId = `op${++opCounter}`;
+      const contacted = network.reachableFromZone(command.zone);
+      const quorumRequired = protocol.quorumRequired(scenario.nodes.length);
+      const versionedValue: VersionedValue = {
+        value: command.type === "write" ? command.value : scenario.initialValue,
+        version: opCounter,
+        writer: opId,
+      };
+      const requests: TimedReplicaRequest[] = contacted.map((nodeId) => {
+        const deliverAt = start + rng.int(3, 9);
+        return {
+          nodeId,
+          deliverAt,
+          ackAt: deliverAt + rng.int(2, 8),
+        };
       });
-      if (kind === "write" && protocol.name === "unsafe") {
+      const orderedRequests = sortRequestsByAck(requests);
+      const enoughReplicas = requests.length >= quorumRequired;
+      const thresholdRequest = orderedRequests[quorumRequired - 1];
+      const end = enoughReplicas && thresholdRequest ? thresholdRequest.ackAt : start + 10;
+
+      pushEvent({
+        time: start,
+        type: "operation-start",
+        opId,
+        source: command.client,
+        value: command.type === "write" ? command.value : undefined,
+        version: command.type === "write" ? versionedValue.version : undefined,
+        note: command.label ?? (batchLabel ? `${batchLabel}: ${command.type} started` : `${command.type} started`),
+      });
+
+      for (const request of requests) {
         pushEvent({
-          time: request.deliverAt,
-          type: "commit",
+          time: start,
+          type: "send",
           opId,
+          source: "client",
           target: request.nodeId,
-          value: response.value,
-          version: response.version,
-          note: `${request.nodeId} committed ${response.value}`,
+          value: command.type === "write" ? versionedValue.value : undefined,
+          version: command.type === "write" ? versionedValue.version : undefined,
+          note: `${protocol.requestVerb(command.type)} sent to ${request.nodeId}`,
         });
       }
-      responses.push({ ...response, deliverAt: request.deliverAt, ackAt: request.ackAt });
+
+      return {
+        opId,
+        stepIndex,
+        command,
+        start,
+        end,
+        status: enoughReplicas ? "ok" : "unavailable",
+        contacted,
+        quorumRequired,
+        versionedValue,
+        requests,
+        responses: [],
+      } satisfies PendingOperation;
+    });
+
+    const actions = buildBatchActions(pendingOperations);
+    for (const action of actions.sort(compareBatchActions)) {
+      if (action.kind === "deliver") {
+        const node = mustGetNode(nodes, action.request.nodeId);
+        const response =
+          action.pending.command.type === "write"
+            ? protocol.applyWriteRequest(node, action.pending.versionedValue, action.pending.opId)
+            : protocol.applyReadRequest(node);
+        action.pending.responses.push({
+          ...response,
+          deliverAt: action.request.deliverAt,
+          ackAt: action.request.ackAt,
+        });
+        pushEvent({
+          time: action.request.deliverAt,
+          type: "deliver",
+          opId: action.pending.opId,
+          source: "client",
+          target: action.request.nodeId,
+          value: response.value,
+          version: response.version,
+          note: `${action.request.nodeId} handled ${protocol.requestVerb(action.pending.command.type)}`,
+        });
+        if (action.pending.command.type === "write" && protocol.name === "unsafe") {
+          pushEvent({
+            time: action.request.deliverAt,
+            type: "commit",
+            opId: action.pending.opId,
+            target: action.request.nodeId,
+            value: response.value,
+            version: response.version,
+            note: `${action.request.nodeId} committed ${response.value}`,
+          });
+        }
+      } else if (action.kind === "ack") {
+        const response = responseFor(action.pending, action.request.nodeId);
+        pushEvent({
+          time: action.request.ackAt,
+          type: "ack",
+          opId: action.pending.opId,
+          source: response.nodeId,
+          target: action.pending.command.client,
+          value: response.value,
+          version: response.version,
+          note: `${response.nodeId} acknowledged ${action.pending.command.type}`,
+        });
+      } else if (action.kind === "commit") {
+        const committed = protocol.commitWrite(
+          mustGetNode(nodes, action.request.nodeId),
+          action.pending.opId,
+          action.pending.versionedValue,
+        );
+        if (committed) {
+          pushEvent({
+            time: action.time,
+            type: "commit",
+            opId: action.pending.opId,
+            target: action.request.nodeId,
+            value: action.pending.versionedValue.value,
+            version: action.pending.versionedValue.version,
+            note: `${action.request.nodeId} committed ${action.pending.versionedValue.value}`,
+          });
+        }
+      } else if (action.kind === "abort") {
+        const aborted = protocol.abortWrite(mustGetNode(nodes, action.request.nodeId), action.pending.opId);
+        if (aborted) {
+          pushEvent({
+            time: action.time,
+            type: "abort",
+            opId: action.pending.opId,
+            target: action.request.nodeId,
+            value: action.pending.versionedValue.value,
+            version: action.pending.versionedValue.version,
+            note: `${action.request.nodeId} aborted uncommitted write`,
+          });
+        }
+      } else {
+        const operation = completeOperation(action.pending);
+        operations.push(operation);
+        pushEvent({
+          time: action.pending.end,
+          type: "operation-complete",
+          opId: action.pending.opId,
+          source: action.pending.command.client,
+          status: operation.status,
+          value: operation.output,
+          note: operation.note,
+        });
+      }
     }
-    return responses.sort((a, b) => a.ackAt - b.ackAt || a.nodeId.localeCompare(b.nodeId));
+
+    now = Math.max(now, ...actions.map((action) => action.time));
   };
 
   scenario.steps.forEach((step, stepIndex) => {
@@ -145,135 +303,12 @@ export function simulateScenario(scenario: Scenario, protocolName: ProtocolName)
       return;
     }
 
-    const opId = `op${++opCounter}`;
-    const start = now + 1;
-    now = start;
-    const contacted = network.reachableFromZone(step.zone);
-    const quorumRequired = protocol.quorumRequired(scenario.nodes.length);
-    const versionedValue: VersionedValue = {
-      value: step.type === "write" ? step.value : scenario.initialValue,
-      version: opCounter,
-      writer: opId,
-    };
-
-    pushEvent({
-      time: start,
-      type: "operation-start",
-      opId,
-      source: step.client,
-      value: step.type === "write" ? step.value : undefined,
-      version: step.type === "write" ? versionedValue.version : undefined,
-      note: step.label ?? `${step.type} started`,
-    });
-
-    const responses = sortedResponses(opId, step.type, contacted, versionedValue);
-    const enoughReplicas = responses.length >= quorumRequired;
-    const thresholdResponses = responses.slice(0, quorumRequired);
-    for (const response of responses) {
-      pushEvent({
-        time: response.ackAt,
-        type: "ack",
-        opId,
-        source: response.nodeId,
-        target: step.client,
-        value: response.value,
-        version: response.version,
-        note: `${response.nodeId} acknowledged ${step.type}`,
-      });
+    if (step.type === "concurrent") {
+      executeOperationBatch(step.operations, stepIndex, step.label);
+      return;
     }
 
-    const end =
-      enoughReplicas && thresholdResponses.length > 0
-        ? thresholdResponses[thresholdResponses.length - 1]!.ackAt
-        : now + 10;
-    const acknowledgements = enoughReplicas
-      ? thresholdResponses.map((response) => response.nodeId)
-      : responses.map((response) => response.nodeId);
-
-    let status: "ok" | "unavailable" = enoughReplicas ? "ok" : "unavailable";
-    let output: RegisterValue | undefined;
-    let note = "operation completed";
-
-    if (step.type === "write") {
-      if (status === "ok") {
-        if (protocol.name === "quorum") {
-          for (const response of responses) {
-            const commitTime = Math.max(end, response.ackAt);
-            const committed = protocol.commitWrite(mustGetNode(nodes, response.nodeId), opId, versionedValue);
-            if (committed) {
-              pushEvent({
-                time: commitTime,
-                type: "commit",
-                opId,
-                target: response.nodeId,
-                value: versionedValue.value,
-                version: versionedValue.version,
-                note: `${response.nodeId} committed ${versionedValue.value}`,
-              });
-            }
-          }
-        }
-        output = "ok";
-        note =
-          protocol.name === "quorum"
-            ? `write committed on quorum ${acknowledgements.join(", ")}`
-            : `write accepted after first acknowledgement from ${acknowledgements[0] ?? "none"}`;
-      } else {
-        for (const response of responses) {
-          const aborted = protocol.abortWrite(mustGetNode(nodes, response.nodeId), opId);
-          if (aborted) {
-            pushEvent({
-              time: end,
-              type: "abort",
-              opId,
-              target: response.nodeId,
-              value: versionedValue.value,
-              version: versionedValue.version,
-              note: `${response.nodeId} aborted uncommitted write`,
-            });
-          }
-        }
-        note = `write unavailable: reached ${responses.length}/${quorumRequired} replicas`;
-      }
-    } else if (status === "ok") {
-      const selected = maxVersion(thresholdResponses);
-      output = selected.value;
-      note =
-        protocol.name === "quorum"
-          ? `read returned highest committed value from quorum ${acknowledgements.join(", ")}`
-          : `read returned first available replica value from ${acknowledgements[0] ?? "none"}`;
-    } else {
-      note = `read unavailable: reached ${responses.length}/${quorumRequired} replicas`;
-    }
-
-    now = Math.max(end, ...responses.map((response) => response.ackAt), now);
-    const operation: OperationRecord = {
-      id: opId,
-      stepIndex,
-      label: step.label,
-      client: step.client,
-      kind: step.type,
-      zone: step.zone,
-      start,
-      end,
-      status,
-      input: step.type === "write" ? step.value : undefined,
-      output,
-      contacted,
-      quorumRequired,
-      acknowledgements,
-      note,
-    };
-    operations.push(operation);
-    pushEvent({
-      time: end,
-      type: "operation-complete",
-      opId,
-      source: step.client,
-      status,
-      value: output,
-      note,
-    });
+    executeOperationBatch([step], stepIndex);
   });
 
   const finalNodes = Array.from(nodes.values()).map((node) => ({
@@ -291,6 +326,82 @@ export function simulateScenario(scenario: Scenario, protocolName: ProtocolName)
     finalNodes,
     metrics,
   };
+
+  function buildBatchActions(pendingOperations: readonly PendingOperation[]): BatchAction[] {
+    const actions: BatchAction[] = [];
+    for (const pending of pendingOperations) {
+      for (const request of pending.requests) {
+        actions.push({ kind: "deliver", time: request.deliverAt, order: 0, pending, request });
+        actions.push({ kind: "ack", time: request.ackAt, order: 1, pending, request });
+        if (pending.command.type === "write" && protocol.name === "quorum") {
+          if (pending.status === "ok") {
+            actions.push({
+              kind: "commit",
+              time: Math.max(pending.end, request.ackAt),
+              order: 2,
+              pending,
+              request,
+            });
+          } else {
+            actions.push({ kind: "abort", time: pending.end, order: 2, pending, request });
+          }
+        }
+      }
+      actions.push({ kind: "complete", time: pending.end, order: 3, pending });
+    }
+    return actions;
+  }
+
+  function completeOperation(pending: PendingOperation): OperationRecord {
+    const responses = sortResponsesByAck(pending.responses);
+    const thresholdResponses = responses.slice(0, pending.quorumRequired);
+    const acknowledgements =
+      pending.status === "ok"
+        ? thresholdResponses.map((response) => response.nodeId)
+        : responses.map((response) => response.nodeId);
+
+    let output: RegisterValue | undefined;
+    let note = "operation completed";
+
+    if (pending.command.type === "write") {
+      if (pending.status === "ok") {
+        output = "ok";
+        note =
+          protocol.name === "quorum"
+            ? `write committed on quorum ${acknowledgements.join(", ")}`
+            : `write accepted after first acknowledgement from ${acknowledgements[0] ?? "none"}`;
+      } else {
+        note = `write unavailable: reached ${responses.length}/${pending.quorumRequired} replicas`;
+      }
+    } else if (pending.status === "ok") {
+      const selected = maxVersion(thresholdResponses);
+      output = selected.value;
+      note =
+        protocol.name === "quorum"
+          ? `read returned highest committed value from quorum ${acknowledgements.join(", ")}`
+          : `read returned first available replica value from ${acknowledgements[0] ?? "none"}`;
+    } else {
+      note = `read unavailable: reached ${responses.length}/${pending.quorumRequired} replicas`;
+    }
+
+    return {
+      id: pending.opId,
+      stepIndex: pending.stepIndex,
+      label: pending.command.label,
+      client: pending.command.client,
+      kind: pending.command.type,
+      zone: pending.command.zone,
+      start: pending.start,
+      end: pending.end,
+      status: pending.status,
+      input: pending.command.type === "write" ? pending.command.value : undefined,
+      output,
+      contacted: pending.contacted,
+      quorumRequired: pending.quorumRequired,
+      acknowledgements,
+      note,
+    };
+  }
 }
 
 function mustGetNode(nodes: Map<string, NodeState>, id: string): NodeState {
@@ -299,6 +410,33 @@ function mustGetNode(nodes: Map<string, NodeState>, id: string): NodeState {
     throw new Error(`Unknown node ${id}.`);
   }
   return node;
+}
+
+function responseFor(pending: PendingOperation, nodeId: string): TimedReplicaResponse {
+  const response = pending.responses.find((candidate) => candidate.nodeId === nodeId);
+  if (!response) {
+    throw new Error(`Missing response from ${nodeId} for ${pending.opId}.`);
+  }
+  return response;
+}
+
+function compareBatchActions(a: BatchAction, b: BatchAction): number {
+  const nodeA = "request" in a ? a.request.nodeId : "";
+  const nodeB = "request" in b ? b.request.nodeId : "";
+  return (
+    a.time - b.time ||
+    a.order - b.order ||
+    a.pending.opId.localeCompare(b.pending.opId) ||
+    nodeA.localeCompare(nodeB)
+  );
+}
+
+function sortRequestsByAck(requests: readonly TimedReplicaRequest[]): TimedReplicaRequest[] {
+  return [...requests].sort((a, b) => a.ackAt - b.ackAt || a.nodeId.localeCompare(b.nodeId));
+}
+
+function sortResponsesByAck(responses: readonly TimedReplicaResponse[]): TimedReplicaResponse[] {
+  return [...responses].sort((a, b) => a.ackAt - b.ackAt || a.nodeId.localeCompare(b.nodeId));
 }
 
 function maxVersion(responses: readonly ReplicaResponse[]): ReplicaResponse {

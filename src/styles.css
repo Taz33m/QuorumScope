@@ -269,7 +269,7 @@ h2 {
 
 .search-controls {
   display: grid;
-  grid-template-columns: minmax(94px, 0.55fr) minmax(96px, 0.55fr) minmax(84px, 0.45fr) minmax(160px, 1fr) auto auto;
+  grid-template-columns: minmax(94px, 0.55fr) minmax(96px, 0.55fr) minmax(84px, 0.45fr) minmax(130px, 0.85fr) minmax(130px, 0.85fr) auto auto;
   gap: 10px;
   align-items: end;
 }

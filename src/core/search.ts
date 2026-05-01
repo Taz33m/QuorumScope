@@ -21,6 +21,7 @@ export const defaultSearchConfig: SearchConfig = {
   clientCount: 3,
   readRatio: 0.55,
   partitionIntensity: 0.75,
+  concurrentIntensity: 0.45,
   protocol: "compare",
   shrink: true,
 };
@@ -51,6 +52,9 @@ export function normalizeSearchConfig(config: Partial<SearchConfig> = {}): Searc
   if (normalized.partitionIntensity < 0 || normalized.partitionIntensity > 1) {
     throw new Error("Search partition intensity must be between 0 and 1.");
   }
+  if (normalized.concurrentIntensity < 0 || normalized.concurrentIntensity > 1) {
+    throw new Error("Search concurrent intensity must be between 0 and 1.");
+  }
   return normalized;
 }
 
@@ -66,6 +70,7 @@ export function generateSearchScenario(seed: number, attempt: number, config: Pa
   const minorityZone = 0;
   const value = `v${seed}-${attempt}`;
   const clients = Array.from({ length: normalized.clientCount }, (_, index) => `c${index + 1}`);
+  const useConcurrentProbe = normalized.operationCount >= 4 && rng.next() < normalized.concurrentIntensity;
   const steps: ScenarioStep[] = [
     {
       type: "read",
@@ -83,13 +88,33 @@ export function generateSearchScenario(seed: number, attempt: number, config: Pa
       groups: [minority, majority],
       label: `generated ${minority.length}/${majority.length} partition`,
     },
-    {
-      type: "write",
-      client: clients[1 % clients.length] ?? "c2",
-      zone: majorityZone,
-      value,
-      label: "generated majority write probe",
-    },
+    useConcurrentProbe
+      ? {
+          type: "concurrent",
+          label: "generated overlapping partition probe",
+          operations: [
+            {
+              type: "write",
+              client: clients[1 % clients.length] ?? "c2",
+              zone: majorityZone,
+              value,
+              label: "generated majority write probe",
+            },
+            {
+              type: "read",
+              client: clients[2 % clients.length] ?? "c3",
+              zone: minorityZone,
+              label: "generated overlapping minority read probe",
+            },
+          ],
+        }
+      : {
+          type: "write",
+          client: clients[1 % clients.length] ?? "c2",
+          zone: majorityZone,
+          value,
+          label: "generated majority write probe",
+        },
     {
       type: "wait",
       ms: rng.int(1, 6),
@@ -103,7 +128,8 @@ export function generateSearchScenario(seed: number, attempt: number, config: Pa
     },
   ];
 
-  const extraOps = Math.max(0, normalized.operationCount - 3);
+  const emittedOps = useConcurrentProbe ? 4 : 3;
+  const extraOps = Math.max(0, normalized.operationCount - emittedOps);
   for (let index = 0; index < extraOps; index += 1) {
     const client = clients[(index + 3) % clients.length] ?? "c1";
     const roll = rng.next();
@@ -211,6 +237,9 @@ function summarizeAttempts(attempts: readonly SearchAttempt[]): SearchSummary {
         summary.quorumUnavailableOperations + attempt.quorum.unavailableOperations,
       unsafeUnavailableOperations:
         summary.unsafeUnavailableOperations + attempt.unsafe.unavailableOperations,
+      concurrentSchedules:
+        summary.concurrentSchedules +
+        (attempt.scenario.steps.some((step) => step.type === "concurrent") ? 1 : 0),
     }),
     {
       attempts: 0,
@@ -218,6 +247,7 @@ function summarizeAttempts(attempts: readonly SearchAttempt[]): SearchSummary {
       quorumViolations: 0,
       quorumUnavailableOperations: 0,
       unsafeUnavailableOperations: 0,
+      concurrentSchedules: 0,
     },
   );
 }

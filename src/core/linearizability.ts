@@ -5,6 +5,11 @@ import type {
   StaleReadWitness,
 } from "./types";
 
+interface SearchSuccess {
+  order: string[];
+  finalValue: RegisterValue;
+}
+
 export function checkLinearizability(
   history: readonly OperationRecord[],
   initialValue: RegisterValue,
@@ -24,7 +29,9 @@ export function checkLinearizability(
     return {
       ok: true,
       checkedOperations: completed.length,
-      legalOrder: search,
+      legalOrder: search.order,
+      finalValue: search.finalValue,
+      explanation: `A legal single-register order exists; final value is ${search.finalValue}.`,
     };
   }
 
@@ -33,6 +40,9 @@ export function checkLinearizability(
     ok: false,
     checkedOperations: completed.length,
     legalOrder: [],
+    explanation:
+      staleRead?.explanation ??
+      "No sequential ordering can satisfy the register specification while preserving real-time operation order.",
     witness:
       staleRead ??
       {
@@ -51,9 +61,12 @@ function dfs(
   currentValue: RegisterValue,
   order: string[],
   memo: Set<string>,
-): string[] | undefined {
+): SearchSuccess | undefined {
   if (order.length === operations.length) {
-    return order;
+    return {
+      order,
+      finalValue: currentValue,
+    };
   }
   const memoKey = `${placedMask.toString(36)}|${currentValue}`;
   if (memo.has(memoKey)) {

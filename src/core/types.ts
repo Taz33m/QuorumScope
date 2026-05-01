@@ -20,6 +20,21 @@ export interface NodeState {
   prepared?: PreparedValue;
 }
 
+export type OperationScenarioStep =
+  | {
+      type: "write";
+      label?: string;
+      client: ClientId;
+      zone: number;
+      value: RegisterValue;
+    }
+  | {
+      type: "read";
+      label?: string;
+      client: ClientId;
+      zone: number;
+    };
+
 export type ScenarioStep =
   | {
       type: "partition";
@@ -35,18 +50,11 @@ export type ScenarioStep =
       label?: string;
       ms: number;
     }
+  | OperationScenarioStep
   | {
-      type: "write";
+      type: "concurrent";
       label?: string;
-      client: ClientId;
-      zone: number;
-      value: RegisterValue;
-    }
-  | {
-      type: "read";
-      label?: string;
-      client: ClientId;
-      zone: number;
+      operations: OperationScenarioStep[];
     };
 
 export interface Scenario {
@@ -146,6 +154,8 @@ export interface LinearizabilityVerdict {
   ok: boolean;
   checkedOperations: number;
   legalOrder: string[];
+  finalValue?: RegisterValue;
+  explanation: string;
   witness?: LinearizabilityWitness;
 }
 
@@ -185,6 +195,7 @@ export interface SearchConfig {
   clientCount: number;
   readRatio: number;
   partitionIntensity: number;
+  concurrentIntensity: number;
   protocol: ProtocolName | "compare";
   shrink: boolean;
 }
@@ -219,6 +230,7 @@ export interface SearchSummary {
   quorumViolations: number;
   quorumUnavailableOperations: number;
   unsafeUnavailableOperations: number;
+  concurrentSchedules: number;
 }
 
 export interface AdversarialSearchResult {

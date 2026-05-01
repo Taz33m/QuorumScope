@@ -71,6 +71,7 @@ export function App() {
   const [searchBudget, setSearchBudget] = useState(defaultSearchConfig.seeds);
   const [searchOps, setSearchOps] = useState(defaultSearchConfig.operationCount);
   const [searchChaos, setSearchChaos] = useState(defaultSearchConfig.partitionIntensity);
+  const [searchConcurrency, setSearchConcurrency] = useState(defaultSearchConfig.concurrentIntensity);
   const [searchResult, setSearchResult] = useState<AdversarialSearchResult>(() =>
     runAdversarialSearch(defaultSearchConfig),
   );
@@ -133,6 +134,7 @@ export function App() {
         seeds: searchBudget,
         operationCount: searchOps,
         partitionIntensity: searchChaos,
+        concurrentIntensity: searchConcurrency,
         protocol: "compare",
       }),
     );
@@ -273,11 +275,13 @@ export function App() {
         budget={searchBudget}
         operationCount={searchOps}
         chaos={searchChaos}
+        concurrency={searchConcurrency}
         result={searchResult}
         onSeedChange={setSearchSeed}
         onBudgetChange={setSearchBudget}
         onOperationCountChange={setSearchOps}
         onChaosChange={setSearchChaos}
+        onConcurrencyChange={setSearchConcurrency}
         onRun={runSearch}
         onLoad={loadSearchFailure}
       />
@@ -316,11 +320,13 @@ function AdversarialSearchPanel({
   budget,
   operationCount,
   chaos,
+  concurrency,
   result,
   onSeedChange,
   onBudgetChange,
   onOperationCountChange,
   onChaosChange,
+  onConcurrencyChange,
   onRun,
   onLoad,
 }: {
@@ -328,11 +334,13 @@ function AdversarialSearchPanel({
   budget: number;
   operationCount: number;
   chaos: number;
+  concurrency: number;
   result: AdversarialSearchResult;
   onSeedChange: (value: number) => void;
   onBudgetChange: (value: number) => void;
   onOperationCountChange: (value: number) => void;
   onChaosChange: (value: number) => void;
+  onConcurrencyChange: (value: number) => void;
   onRun: () => void;
   onLoad: () => void;
 }) {
@@ -343,12 +351,14 @@ function AdversarialSearchPanel({
       <div className="pane-heading">
         <h2>Adversarial Search</h2>
         <span>
-          seed <code>{result.config.seed}</code> · {result.summary.attempts} schedules
+          seed <code>{result.config.seed}</code> · {result.summary.attempts} schedules ·{" "}
+          {result.summary.concurrentSchedules} overlap probes
         </span>
       </div>
       <div className="search-copy">
-        QuorumScope now generates bounded partition schedules, finds stale reads, shrinks the
-        counterexample, and compares the same scenario against quorum.
+        QuorumScope generates bounded partition schedules with optional overlapping client
+        operations, finds stale reads, shrinks the counterexample, and compares the same scenario
+        against quorum.
       </div>
       <div className="search-controls">
         <label>
@@ -387,6 +397,17 @@ function AdversarialSearchPanel({
             step={0.05}
             value={chaos}
             onChange={(event) => onChaosChange(Number(event.target.value))}
+          />
+        </label>
+        <label>
+          Overlap
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={concurrency}
+            onChange={(event) => onConcurrencyChange(Number(event.target.value))}
           />
         </label>
         <button className="primary-button" onClick={onRun}>
@@ -584,7 +605,10 @@ function VerdictPanel({ result }: { result: AnalysisResult }) {
           <CheckCircle2 size={20} />
           <div>
             <strong>Legal sequential order exists.</strong>
-            <p>{result.verdict.legalOrder.join(" -> ")}</p>
+            <p>
+              {result.verdict.legalOrder.join(" -> ")}
+              {result.verdict.finalValue ? `; final value ${result.verdict.finalValue}` : ""}
+            </p>
           </div>
         </div>
       ) : witness?.type === "stale-read" ? (
@@ -677,6 +701,9 @@ function OperationTimeline({
 function describeStep(step: AnalysisResult["scenario"]["steps"][number]): string {
   if (step.type === "partition") {
     return `partition ${step.groups.map((group) => `[${group.join(", ")}]`).join(" | ")}`;
+  }
+  if (step.type === "concurrent") {
+    return `overlap ${step.operations.map((operation) => describeStep(operation)).join("; ")}`;
   }
   if (step.type === "write") {
     return `${step.client} writes ${step.value} in zone ${step.zone}`;

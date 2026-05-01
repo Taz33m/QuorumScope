@@ -21,6 +21,22 @@ describe("adversarial search", () => {
     expect(second.scenario.steps).not.toEqual(first.scenario.steps);
   });
 
+  it("can generate replayable overlapping client operations", () => {
+    const generated = generateSearchScenario(143, 0, {
+      operationCount: 8,
+      concurrentIntensity: 1,
+    });
+
+    const concurrentStepIndex = generated.scenario.steps.findIndex((step) => step.type === "concurrent");
+    expect(concurrentStepIndex).toBeGreaterThanOrEqual(0);
+
+    const replay = simulateScenario(generated.scenario, "unsafe");
+    const overlapped = replay.operations.filter((operation) => operation.stepIndex === concurrentStepIndex);
+
+    expect(overlapped).toHaveLength(2);
+    expect(new Set(overlapped.map((operation) => operation.start)).size).toBe(1);
+  });
+
   it("finds a first-ack violation within a small deterministic seed range", () => {
     const result = runAdversarialSearch({ seed: 143, seeds: 5, protocol: "unsafe" });
 

@@ -21,7 +21,7 @@ The default UI shows both paths:
 
 ## Architecture
 
-- `src/core/simulator.ts`: deterministic event simulator for partitions, reads, writes, acknowledgements, commits, and aborts.
+- `src/core/simulator.ts`: deterministic event simulator for partitions, concurrent operation batches, reads, writes, acknowledgements, commits, and aborts.
 - `src/core/protocols.ts`: unsafe first-ack register and quorum-commit register.
 - `src/core/linearizability.ts`: backtracking single-register linearizability checker using `BigInt` state masks.
 - `src/core/shrinker.ts`: greedy counterexample reducer over scenario steps.
@@ -33,11 +33,11 @@ The default UI shows both paths:
 
 ## Core Algorithm
 
-The checker filters successful operations, builds real-time predecessor constraints, and performs DFS over candidate sequential orders. Writes update the abstract register value; reads are legal only when their observed value matches the current abstract value. The search memoizes `(placed operations, current value)` states with `BigInt` masks, so histories above 31 operations do not alias.
+The checker filters successful operations, builds real-time predecessor constraints, and performs DFS over candidate sequential orders. Writes update the abstract register value; reads are legal only when their observed value matches the current abstract value. Safe histories return a legal sequential witness and final register value. The search memoizes `(placed operations, current value)` states with `BigInt` masks, so histories above 31 operations do not alias.
 
 ## Adversarial Search
 
-The search engine uses a seeded generator to produce ordinary `Scenario` objects. Each scenario is small and replayable: exact-cover partitions, bounded operations, deterministic waits, majority-side writes, minority-side reads, and a few extra read/write/heal steps. The runner executes the same scenario under first-ack and quorum, checks both histories, and shrinks any failing first-ack counterexample with the same simulator/checker oracle used by the tests.
+The search engine uses a seeded generator to produce ordinary `Scenario` objects. Each scenario is small and replayable: exact-cover partitions, bounded operations, deterministic waits, optional overlapping client batches, majority-side writes, minority-side reads, and a few extra read/write/heal steps. The runner executes the same scenario under first-ack and quorum, checks both histories, and shrinks any failing first-ack counterexample with the same simulator/checker oracle used by the tests.
 
 The current generator is adversarially biased toward quorum-boundary split-brain schedules. It is a bounded search/regression harness, not an exhaustive model checker.
 
@@ -99,6 +99,7 @@ Search output includes:
 
 - search config
 - seeds explored
+- how many generated schedules included overlapping operations
 - first failing seed
 - original and minimized step count
 - stale-read witness
@@ -125,7 +126,7 @@ npm run search -- --seed 143 --seeds 1 --protocol compare --shrink
 - Single-key register only.
 - Five-node fixture layout in the UI.
 - No full Raft, Paxos, leader election, retries, anti-entropy, read repair, durable storage, message loss, or real networking.
-- Scenarios are serialized; the checker supports concurrent histories, but the included simulator fixtures do not generate arbitrary overlapping client operations yet.
+- Scenarios can include overlapping operation batches, but QuorumScope does not exhaustively enumerate all possible concurrent schedules.
 - Search scenarios are bounded and adversarially biased; this is not exhaustive model checking.
 - Quorum results mean “zero violations in this bounded generated corpus under the modeled assumptions,” not universal correctness.
 - The UI is a trace/search workbench, not a generic distributed-systems playground.
@@ -133,7 +134,7 @@ npm run search -- --seed 143 --seeds 1 --protocol compare --shrink
 ## Future Work
 
 - Add scenario JSON validation and a scenario picker.
-- Add message drops, delayed commits, overlapping clients, and read repair.
+- Add message drops, delayed commits, finer-grained schedule exploration, and read repair.
 - Add checker performance benchmarks over increasing history sizes.
 - Add exportable proof/trace artifacts.
 

@@ -23,6 +23,7 @@ describe("linearizability checker", () => {
     expect(checkLinearizability(history, "v0")).toMatchObject({
       ok: true,
       legalOrder: ["w1", "r1"],
+      finalValue: "v1",
     });
   });
 
@@ -48,7 +49,10 @@ describe("linearizability checker", () => {
       { ...base, id: "r1", kind: "read", start: 3, end: 4, output: "v0" },
     ];
 
-    expect(checkLinearizability(history, "v0").ok).toBe(true);
+    expect(checkLinearizability(history, "v0")).toMatchObject({
+      ok: true,
+      finalValue: "v1",
+    });
   });
 
   it("handles more than 31 completed operations without bitmask aliasing", () => {

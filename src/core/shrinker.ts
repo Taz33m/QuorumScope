@@ -47,6 +47,9 @@ function cloneScenario(scenario: Scenario): Scenario {
       if (step.type === "partition") {
         return { ...step, groups: step.groups.map((group) => [...group]) };
       }
+      if (step.type === "concurrent") {
+        return { ...step, operations: step.operations.map((operation) => ({ ...operation })) };
+      }
       return { ...step };
     }),
   };

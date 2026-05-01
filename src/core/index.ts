@@ -20,6 +20,7 @@ export type {
   LinearizabilityVerdict,
   NodeId,
   OperationRecord,
+  OperationScenarioStep,
   ProtocolName,
   ProtocolSearchEvaluation,
   Scenario,

@@ -43,7 +43,9 @@ function printResult(result: AnalysisResult): void {
       `witness: ${witness.read.id} returned ${witness.observed}, but ${witness.priorWrite.id} completed first with ${witness.expected}`,
     );
   } else if (result.verdict.ok) {
-    console.log(`legal order: ${result.verdict.legalOrder.join(" -> ")}`);
+    console.log(
+      `legal order: ${result.verdict.legalOrder.join(" -> ")}; final value ${result.verdict.finalValue ?? result.scenario.initialValue}`,
+    );
   } else if (result.verdict.witness) {
     console.log(`witness: ${result.verdict.witness.explanation}`);
   }

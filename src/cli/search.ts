@@ -14,16 +14,18 @@ console.log("QuorumScope adversarial search");
 console.log(`Protocol: ${protocol}`);
 console.log(`Seeds: ${result.config.seeds}`);
 console.log(
-  `Config: seed=${result.config.seed} nodes=${result.config.nodeCount} ops=${result.config.operationCount} clients=${result.config.clientCount} partitionIntensity=${result.config.partitionIntensity}`,
+  `Config: seed=${result.config.seed} nodes=${result.config.nodeCount} ops=${result.config.operationCount} clients=${result.config.clientCount} partitionIntensity=${result.config.partitionIntensity} concurrentIntensity=${result.config.concurrentIntensity}`,
 );
+console.log(`Overlapping schedules: ${result.summary.concurrentSchedules}`);
 
 if (result.firstFailure) {
   const failure = result.firstFailure;
-  const witness = failure.unsafe.analysis.verdict.witness;
+  const selected = protocol === "quorum" ? failure.quorum : failure.unsafe;
+  const witness = selected.analysis.verdict.witness;
   console.log(`First violation: seed ${failure.seed}`);
   console.log(`Original steps: ${failure.scenario.steps.length}`);
   console.log(
-    `Minimized steps: ${failure.unsafe.minimized?.scenario.steps.length ?? failure.scenario.steps.length}`,
+    `Minimized steps: ${selected.minimized?.scenario.steps.length ?? failure.scenario.steps.length}`,
   );
   if (witness?.type === "stale-read") {
     console.log(
@@ -34,7 +36,7 @@ if (result.firstFailure) {
   }
   console.log(`Reproduce: ${reproductionCommand(failure.seed, protocol)}`);
   console.log(
-    `Checker verdict: ${failure.unsafe.analysis.verdict.ok ? "LINEARIZABLE" : "NOT LINEARIZABLE"}`,
+    `Checker verdict: ${selected.analysis.verdict.ok ? "LINEARIZABLE" : "NOT LINEARIZABLE"}`,
   );
 } else {
   console.log("First violation: none found");
@@ -78,6 +80,9 @@ function parseArgs(args: string[]): Partial<SearchConfig> {
       index += 1;
     } else if (arg === "--chaos" && next) {
       parsed.partitionIntensity = parseFloatStrict(next, "chaos");
+      index += 1;
+    } else if ((arg === "--concurrency" || arg === "--overlap") && next) {
+      parsed.concurrentIntensity = parseFloatStrict(next, "concurrency");
       index += 1;
     } else if (arg === "--protocol" && next) {
       parsed.protocol = parseProtocol(next);
@@ -130,6 +135,7 @@ Options:
   --ops <n>           Operation count, default ${defaultSearchConfig.operationCount}
   --clients <n>       Client count, default ${defaultSearchConfig.clientCount}
   --chaos <0..1>      Partition intensity, default ${defaultSearchConfig.partitionIntensity}
+  --concurrency <0..1> Overlap intensity, default ${defaultSearchConfig.concurrentIntensity}
 `);
   process.exit(0);
 }
