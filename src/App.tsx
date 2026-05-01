@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronsRight,
   Network,
   Pause,
   Play,
@@ -14,8 +15,11 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import {
   analyzeScenario,
+  defaultSearchConfig,
   runBenchmark,
+  runAdversarialSearch,
   splitBrainStaleReadScenario,
+  type AdversarialSearchResult,
   type AnalysisResult,
   type EventRecord,
   type NodeId,
@@ -54,14 +58,22 @@ const protocolLabels: Record<ProtocolName, string> = {
 };
 
 export function App() {
+  const [activeScenario, setActiveScenario] = useState(splitBrainStaleReadScenario);
   const analyses = useMemo(
     () => ({
-      unsafe: analyzeScenario(splitBrainStaleReadScenario, "unsafe"),
-      quorum: analyzeScenario(splitBrainStaleReadScenario, "quorum"),
+      unsafe: analyzeScenario(activeScenario, "unsafe"),
+      quorum: analyzeScenario(activeScenario, "quorum"),
     }),
-    [],
+    [activeScenario],
   );
   const benchmark = useMemo(() => runBenchmark(50, 4310), []);
+  const [searchSeed, setSearchSeed] = useState(defaultSearchConfig.seed);
+  const [searchBudget, setSearchBudget] = useState(defaultSearchConfig.seeds);
+  const [searchOps, setSearchOps] = useState(defaultSearchConfig.operationCount);
+  const [searchChaos, setSearchChaos] = useState(defaultSearchConfig.partitionIntensity);
+  const [searchResult, setSearchResult] = useState<AdversarialSearchResult>(() =>
+    runAdversarialSearch(defaultSearchConfig),
+  );
   const [protocol, setProtocol] = useState<ProtocolName>("unsafe");
   const [eventIndex, setEventIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -114,6 +126,33 @@ export function App() {
     setPendingJump({ protocol: nextProtocol, opId });
     setProtocol(nextProtocol);
   };
+  const runSearch = () => {
+    setSearchResult(
+      runAdversarialSearch({
+        seed: searchSeed,
+        seeds: searchBudget,
+        operationCount: searchOps,
+        partitionIntensity: searchChaos,
+        protocol: "compare",
+      }),
+    );
+  };
+  const loadSearchFailure = () => {
+    const failure = searchResult.firstFailure;
+    if (!failure) {
+      return;
+    }
+    const minimizedWitness = failure.unsafe.minimized?.witness;
+    const jumpOpId =
+      minimizedWitness?.type === "stale-read"
+        ? minimizedWitness.read.id
+        : failure.unsafe.analysis.verdict.witness?.type === "stale-read"
+          ? failure.unsafe.analysis.verdict.witness.read.id
+          : "op3";
+    setActiveScenario(failure.unsafe.minimized?.scenario ?? failure.scenario);
+    setProtocol("unsafe");
+    setPendingJump({ protocol: "unsafe", opId: jumpOpId });
+  };
 
   return (
     <main className="app-shell">
@@ -124,8 +163,8 @@ export function App() {
           </div>
           <h1>QuorumScope</h1>
           <p>
-            Replay one partition schedule against two replicated-register protocols, then check whether
-            every successful read has a legal sequential explanation.
+            Search bounded partition schedules, shrink a found consistency violation, then replay the
+            same scenario against first-ack and quorum protocols.
           </p>
         </div>
         <div className="verdict-chip" data-state={result.verdict.ok ? "ok" : "bad"}>
@@ -229,6 +268,20 @@ export function App() {
         </div>
       </section>
 
+      <AdversarialSearchPanel
+        seed={searchSeed}
+        budget={searchBudget}
+        operationCount={searchOps}
+        chaos={searchChaos}
+        result={searchResult}
+        onSeedChange={setSearchSeed}
+        onBudgetChange={setSearchBudget}
+        onOperationCountChange={setSearchOps}
+        onChaosChange={setSearchChaos}
+        onRun={runSearch}
+        onLoad={loadSearchFailure}
+      />
+
       <section className="workbench">
         <div className="network-pane">
           <NetworkMap
@@ -255,6 +308,147 @@ export function App() {
         <BenchmarkPanel rows={benchmark.rows} />
       </section>
     </main>
+  );
+}
+
+function AdversarialSearchPanel({
+  seed,
+  budget,
+  operationCount,
+  chaos,
+  result,
+  onSeedChange,
+  onBudgetChange,
+  onOperationCountChange,
+  onChaosChange,
+  onRun,
+  onLoad,
+}: {
+  seed: number;
+  budget: number;
+  operationCount: number;
+  chaos: number;
+  result: AdversarialSearchResult;
+  onSeedChange: (value: number) => void;
+  onBudgetChange: (value: number) => void;
+  onOperationCountChange: (value: number) => void;
+  onChaosChange: (value: number) => void;
+  onRun: () => void;
+  onLoad: () => void;
+}) {
+  const failure = result.firstFailure;
+  const witness = failure?.unsafe.analysis.verdict.witness;
+  return (
+    <section className="search-panel" aria-label="Adversarial Search">
+      <div className="pane-heading">
+        <h2>Adversarial Search</h2>
+        <span>
+          seed <code>{result.config.seed}</code> · {result.summary.attempts} schedules
+        </span>
+      </div>
+      <div className="search-copy">
+        QuorumScope now generates bounded partition schedules, finds stale reads, shrinks the
+        counterexample, and compares the same scenario against quorum.
+      </div>
+      <div className="search-controls">
+        <label>
+          Seed
+          <input
+            type="number"
+            value={seed}
+            min={0}
+            onChange={(event) => onSeedChange(Number(event.target.value))}
+          />
+        </label>
+        <label>
+          Budget
+          <select value={budget} onChange={(event) => onBudgetChange(Number(event.target.value))}>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </label>
+        <label>
+          Ops
+          <input
+            type="number"
+            value={operationCount}
+            min={3}
+            max={30}
+            onChange={(event) => onOperationCountChange(Number(event.target.value))}
+          />
+        </label>
+        <label>
+          Chaos
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={chaos}
+            onChange={(event) => onChaosChange(Number(event.target.value))}
+          />
+        </label>
+        <button className="primary-button" onClick={onRun}>
+          <ChevronsRight size={17} />
+          Run Search
+        </button>
+        <button className="secondary-button" onClick={onLoad} disabled={!failure}>
+          Load Failure
+        </button>
+      </div>
+
+      <div className="frontier" aria-label="Search frontier">
+        {result.attempts.map((attempt) => (
+          <span
+            key={`${attempt.seed}-${attempt.attempt}`}
+            className={`frontier-cell ${attempt.unsafe.violation ? "bad" : "neutral"} ${
+              attempt.seed === failure?.seed ? "winner" : ""
+            } ${attempt.quorum.unavailableOperations > 0 ? "tradeoff" : ""}`}
+            title={`seed ${attempt.seed}: first-ack ${
+              attempt.unsafe.violation ? "violation" : "ok"
+            }, quorum ${attempt.quorum.violation ? "violation" : "ok"}, unavailable ${
+              attempt.quorum.unavailableOperations
+            }`}
+          />
+        ))}
+      </div>
+
+      <div className="search-result">
+        <div>
+          <span>First failure</span>
+          <strong>{failure ? `seed ${failure.seed}` : "none found"}</strong>
+          <p>
+            {witness?.type === "stale-read"
+              ? `${witness.read.id} returned ${witness.observed} after ${witness.priorWrite.id} wrote ${witness.expected}.`
+              : "No stale-read witness in the explored corpus."}
+          </p>
+        </div>
+        <div>
+          <span>Protocol comparison</span>
+          <strong>
+            First-ack {result.summary.unsafeViolations > 0 ? "found violations" : "found none"} ·
+            Quorum {result.summary.quorumViolations}
+          </strong>
+          <p>{result.summary.quorumUnavailableOperations} quorum operations were unavailable.</p>
+        </div>
+        <div>
+          <span>Reproduce</span>
+          <code>
+            npm run search -- --seed {failure?.seed ?? result.config.seed} --seeds 1 --protocol compare --shrink
+          </code>
+          <p>{result.claim}</p>
+        </div>
+      </div>
+
+      {failure?.unsafe.minimized ? (
+        <ol className="minimized-steps">
+          {failure.unsafe.minimized.scenario.steps.map((step, index) => (
+            <li key={`${step.type}-${index}`}>{describeStep(step)}</li>
+          ))}
+        </ol>
+      ) : null}
+    </section>
   );
 }
 
@@ -344,7 +538,12 @@ function NetworkMap({
           const point = POSITIONS[node.id] ?? { x: 0, y: 0 };
           const hot = event?.target === node.id || event?.source === node.id;
           return (
-            <g key={node.id} className={`replica-node ${node.value === "v1" ? "new-value" : ""} ${hot ? "hot" : ""}`}>
+            <g
+              key={node.id}
+              className={`replica-node ${node.value !== result.scenario.initialValue ? "new-value" : ""} ${
+                hot ? "hot" : ""
+              }`}
+            >
               <circle cx={point.x} cy={point.y} r="34" />
               <text className="node-id" x={point.x} y={point.y - 5} textAnchor="middle">
                 {node.id}
@@ -362,7 +561,7 @@ function NetworkMap({
       </div>
       <div className="legend" aria-label="Trace legend">
         <span><i className="legend-node old" /> v0 replica</span>
-        <span><i className="legend-node new" /> v1 replica</span>
+        <span><i className="legend-node new" /> newer value</span>
         <span><i className="legend-line request" /> request</span>
         <span><i className="legend-line commit" /> commit</span>
         <span><i className="legend-line ack" /> ack</span>

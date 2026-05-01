@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runBenchmark } from "../src/core";
+import { runBenchmark, runSearchBenchmark } from "../src/core";
 
 describe("benchmark harness", () => {
   it("compares unsafe availability with quorum safety over deterministic fault schedules", () => {
@@ -16,5 +16,15 @@ describe("benchmark harness", () => {
   it("rejects invalid benchmark run counts", () => {
     expect(() => runBenchmark(0)).toThrow(/between 1 and 500/);
     expect(() => runBenchmark(501)).toThrow(/between 1 and 500/);
+  });
+
+  it("summarizes adversarial search corpus without broad proof claims", () => {
+    const result = runSearchBenchmark(5, 143);
+
+    expect(result.summary.attempts).toBe(5);
+    expect(result.summary.unsafeViolations).toBe(5);
+    expect(result.summary.quorumViolations).toBe(0);
+    expect(result.summary.quorumUnavailableOperations).toBeGreaterThan(0);
+    expect(result.claim).toContain("not a general proof");
   });
 });

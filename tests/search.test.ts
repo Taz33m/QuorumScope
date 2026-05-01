@@ -1,0 +1,82 @@
+import { describe, expect, it } from "vitest";
+import {
+  checkLinearizability,
+  generateSearchScenario,
+  runAdversarialSearch,
+  simulateScenario,
+} from "../src/core";
+
+describe("adversarial search", () => {
+  it("generates deterministic scenarios for the same seed and config", () => {
+    const first = generateSearchScenario(143, 0, { seeds: 5, operationCount: 8 });
+    const second = generateSearchScenario(143, 0, { seeds: 5, operationCount: 8 });
+
+    expect(second).toEqual(first);
+  });
+
+  it("changes generated scenario structure for different seeds", () => {
+    const first = generateSearchScenario(143, 0, { operationCount: 8 });
+    const second = generateSearchScenario(144, 0, { operationCount: 8 });
+
+    expect(second.scenario.steps).not.toEqual(first.scenario.steps);
+  });
+
+  it("finds a first-ack violation within a small deterministic seed range", () => {
+    const result = runAdversarialSearch({ seed: 143, seeds: 5, protocol: "unsafe" });
+
+    expect(result.firstFailure).toBeDefined();
+    expect(result.firstFailure!.unsafe.violation).toBe(true);
+    expect(result.firstFailure!.unsafe.analysis.verdict.witness?.type).toBe("stale-read");
+    expect(result.summary.unsafeViolations).toBeGreaterThan(0);
+  });
+
+  it("shrinks a generated failing scenario while preserving the failure", () => {
+    const result = runAdversarialSearch({ seed: 143, seeds: 5, protocol: "unsafe" });
+    const failure = result.firstFailure!;
+    const minimized = failure.unsafe.minimized;
+
+    expect(minimized).toBeDefined();
+    expect(minimized!.scenario.steps.length).toBeLessThanOrEqual(failure.scenario.steps.length);
+
+    const replay = simulateScenario(minimized!.scenario, "unsafe");
+    const verdict = checkLinearizability(replay.operations, minimized!.scenario.initialValue);
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.witness?.type).toBe("stale-read");
+  });
+
+  it("reports quorum availability tradeoff without bounded-search violations", () => {
+    const result = runAdversarialSearch({ seed: 143, seeds: 10, protocol: "compare" });
+
+    expect(result.summary.quorumViolations).toBe(0);
+    expect(result.summary.quorumUnavailableOperations).toBeGreaterThan(0);
+    expect(result.claim).toContain("not a general proof");
+  });
+
+  it("does not report an unsafe failure as a quorum protocol failure", () => {
+    const result = runAdversarialSearch({ seed: 143, seeds: 10, protocol: "quorum" });
+
+    expect(result.firstFailure).toBeUndefined();
+    expect(result.summary.unsafeViolations).toBeGreaterThan(0);
+    expect(result.summary.quorumViolations).toBe(0);
+  });
+
+  it("produces replay-compatible generated and minimized counterexamples", () => {
+    const result = runAdversarialSearch({ seed: 143, seeds: 3, protocol: "compare" });
+    const failure = result.firstFailure!;
+
+    const generatedReplay = simulateScenario(failure.scenario, "unsafe");
+    expect(checkLinearizability(generatedReplay.operations, failure.scenario.initialValue).ok).toBe(
+      false,
+    );
+
+    const minimized = failure.unsafe.minimized!.scenario;
+    const minimizedReplay = simulateScenario(minimized, "unsafe");
+    expect(checkLinearizability(minimizedReplay.operations, minimized.initialValue).ok).toBe(false);
+  });
+
+  it("rejects invalid search budgets", () => {
+    expect(() => runAdversarialSearch({ seeds: 0 })).toThrow(/between 1 and 1000/);
+    expect(() => runAdversarialSearch({ operationCount: 2 })).toThrow(/between 3 and 30/);
+  });
+});

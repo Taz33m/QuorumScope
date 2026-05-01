@@ -1,5 +1,6 @@
 import { checkLinearizability } from "./linearizability";
 import { SeededRng } from "./rng";
+import { runAdversarialSearch } from "./search";
 import { simulateScenario } from "./simulator";
 import type { BenchmarkResult, BenchmarkRow, ProtocolName, Scenario } from "./types";
 
@@ -67,6 +68,16 @@ export function runBenchmark(runs = 50, seed = 4310): BenchmarkResult {
   });
 
   return { seed, runs, rows };
+}
+
+export function runSearchBenchmark(runs = 50, seed = 143) {
+  return runAdversarialSearch({
+    seed,
+    seeds: runs,
+    protocol: "compare",
+    operationCount: 8,
+    partitionIntensity: 0.75,
+  });
 }
 
 function round(value: number): number {

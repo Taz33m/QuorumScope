@@ -9,7 +9,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "demo": "node --import tsx src/cli/demo.ts",
-    "bench": "node --import tsx src/cli/bench.ts"
+    "bench": "node --import tsx src/cli/bench.ts",
+    "search": "node --import tsx src/cli/search.ts",
+    "search:first-ack": "node --import tsx src/cli/search.ts --protocol unsafe",
+    "search:compare": "node --import tsx src/cli/search.ts --protocol compare"
   },
   "dependencies": {
     "lucide-react": "1.14.0",

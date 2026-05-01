@@ -174,3 +174,57 @@ export interface BenchmarkResult {
   runs: number;
   rows: BenchmarkRow[];
 }
+
+export type SearchMode = "first-failure" | "compare";
+
+export interface SearchConfig {
+  seed: number;
+  seeds: number;
+  nodeCount: number;
+  operationCount: number;
+  clientCount: number;
+  readRatio: number;
+  partitionIntensity: number;
+  protocol: ProtocolName | "compare";
+  shrink: boolean;
+}
+
+export interface GeneratedScenario {
+  seed: number;
+  attempt: number;
+  scenario: Scenario;
+  partitionShape: string;
+}
+
+export interface ProtocolSearchEvaluation {
+  protocol: ProtocolName;
+  analysis: AnalysisResult;
+  violation: boolean;
+  unavailableOperations: number;
+  minimized?: AnalysisResult["minimizedFailure"];
+}
+
+export interface SearchAttempt {
+  seed: number;
+  attempt: number;
+  scenario: Scenario;
+  partitionShape: string;
+  unsafe: ProtocolSearchEvaluation;
+  quorum: ProtocolSearchEvaluation;
+}
+
+export interface SearchSummary {
+  attempts: number;
+  unsafeViolations: number;
+  quorumViolations: number;
+  quorumUnavailableOperations: number;
+  unsafeUnavailableOperations: number;
+}
+
+export interface AdversarialSearchResult {
+  config: SearchConfig;
+  attempts: SearchAttempt[];
+  firstFailure?: SearchAttempt;
+  summary: SearchSummary;
+  claim: string;
+}
