@@ -11,9 +11,32 @@ if (json) {
   console.log(
     JSON.stringify(
       {
-        corpus: report.corpus.summary,
-        search: report.search.summary,
+        schemaVersion: 1,
+        ok: report.corpus.ok,
+        corpus: {
+          ok: report.corpus.ok,
+          summary: report.corpus.summary,
+          claim: report.corpus.claim,
+        },
+        search: {
+          config: report.search.config,
+          summary: report.search.summary,
+          firstFailure: report.search.firstFailure
+            ? {
+                seed: report.search.firstFailure.seed,
+                attempt: report.search.firstFailure.attempt,
+                scenarioId: report.search.firstFailure.scenario.id,
+                scenarioSteps: report.search.firstFailure.scenario.steps.length,
+                witness: report.search.firstFailure.unsafe.analysis.verdict.witness,
+                minimizedSteps:
+                  report.search.firstFailure.unsafe.minimized?.scenario.steps.length ??
+                  report.search.firstFailure.scenario.steps.length,
+              }
+            : undefined,
+          claim: report.search.claim,
+        },
         exhaustive: {
+          config: report.exhaustive.config,
           coverage: report.exhaustive.coverage,
           unsafe: {
             terminalHistories: report.exhaustive.unsafe.terminalHistories,
@@ -34,6 +57,8 @@ if (json) {
             staleReadViolations: report.exhaustive.quorum.staleReadViolations,
             unavailableOperations: report.exhaustive.quorum.unavailableOperations,
           },
+          searchComparison: report.exhaustive.searchComparison,
+          claim: report.exhaustive.claim,
         },
         boundedClaim: report.boundedClaim,
         reproduce: report.reproduce,

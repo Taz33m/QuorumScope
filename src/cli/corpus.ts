@@ -16,11 +16,20 @@ if (json) {
   console.log(
     JSON.stringify(
       {
+        schemaVersion: 1,
+        ok: result.ok,
+        manifest: {
+          path: result.manifestPath,
+          version: result.manifest.version,
+          fixtureCount: result.manifest.fixtures.length,
+        },
         summary: result.summary,
         fixtures: result.fixtures.map((fixture) => ({
           id: fixture.entry.id,
           title: fixture.entry.title,
           fixture: fixture.entry.fixture,
+          scenarioType: fixture.entry.scenarioType,
+          tags: fixture.entry.tags,
           scenarioHash: fixture.scenarioHash,
           ok: fixture.ok,
           validationErrors: fixture.validationErrors,
