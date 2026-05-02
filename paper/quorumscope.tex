@@ -6,16 +6,21 @@
 \usepackage{hyperref}
 
 \title{QuorumScope: A Bounded Consistency Testing Workbench for Replicated Registers}
-\author{QuorumScope artifact report}
+\author{Tazeem Mahashin\thanks{Rensselaer Polytechnic Institute}}
 \date{\today}
 
 \newcommand{\qs}{QuorumScope}
 \newcommand{\firstack}{first-ack}
 \newcommand{\quorum}{quorum}
 \newcommand{\cmd}[1]{\texttt{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\emergencystretch=2em
 
 \begin{document}
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
 \maketitle
+\setcounter{footnote}{0}
+\renewcommand{\thefootnote}{\arabic{footnote}}
 
 \begin{abstract}
 \qs{} is a bounded consistency-testing workbench for a replicated single-key register under
@@ -53,6 +58,26 @@ adversarial generated corpus, and tiny exhaustive model reported below, no \quor
 linearizability violations were observed under the current register and partition assumptions,
 and the availability cost was counted.
 
+\begin{center}
+\fbox{\begin{minipage}{0.92\linewidth}
+\textbf{Claims and non-claims.}
+\begin{itemize}
+  \setlength{\itemsep}{0.15em}
+  \item \textbf{Claim:} \firstack{} exhibits stale-read linearizability violations in the
+  curated fixture, default adversarial generated corpus, regression corpus, benchmark, and tiny
+  exhaustive model reported here.
+  \item \textbf{Claim:} \quorum{} produced zero linearizability violations in the declared bounded
+  corpora under the current single-register and partition assumptions.
+  \item \textbf{Claim:} \quorum{} pays an availability cost; unavailable operations are reported
+  rather than hidden.
+  \item \textbf{Non-claim:} this is not a proof of \quorum{} correctness for arbitrary systems,
+  networks, schedules, or implementations.
+  \item \textbf{Non-claim:} this is not a production database model, Raft/Paxos implementation,
+  real network simulator, or durability model.
+\end{itemize}
+\end{minipage}}
+\end{center}
+
 \section{System Model}
 
 The model is a deterministic replicated register with a single key and a finite set of replicas.
@@ -82,6 +107,26 @@ The artifact includes two protocols:
 
 Both protocols are run against the same generated or enumerated schedules so that the comparison
 is about protocol behavior rather than different workloads.
+
+\begin{figure}[h]
+\centering
+\fbox{\begin{minipage}{0.88\linewidth}
+\begin{center}
+\begin{tabular}{L{0.38\linewidth} c L{0.38\linewidth}}
+\textbf{Majority partition} & & \textbf{Minority partition} \\
+\texttt{n3, n4, n5} & \Large$\parallel$ & \texttt{n1, n2} \\
+\hline
+write \texttt{op2}: commit \texttt{v1} & & read \texttt{op3}: returns \texttt{v0} under \firstack{} \\
+response before \texttt{op3} starts & $\Rightarrow$ & stale successful read violates real-time order \\
+\hline
+\quorum{} has a majority here & & \quorum{} lacks a majority and returns unavailable \\
+\end{tabular}
+\end{center}
+\end{minipage}}
+\caption{Modeled split-brain stale-read witness. The violation is not that replicas disagree;
+it is that \firstack{} reports a successful read of \texttt{v0} after a completed write to
+\texttt{v1} must precede it in every legal single-register order.}
+\end{figure}
 
 \section{Linearizability Checking}
 
@@ -163,14 +208,14 @@ proof for arbitrary systems.
 
 \section{Evaluation}
 
-All numbers in this section come from commands run on the current checkout before writing this
-report. The product verification command completed successfully and includes tests, typecheck,
-production build, UI smoke, demo, corpus replay, search comparison, exhaustive exploration, and
-product report.
+All numbers in this section come from commands run on the current checkout before updating this
+report. The reported product-result commit was \texttt{3e8b2b0}. The product verification command
+completed successfully and includes tests, typecheck, production build, UI smoke, demo, corpus
+replay, search comparison, exhaustive exploration, and product report.
 
 \begin{table}[h]
 \centering
-\begin{tabular}{|p{0.31\linewidth}|p{0.6\linewidth}|}
+\begin{tabular}{|L{0.31\linewidth}|L{0.6\linewidth}|}
 \hline
 \textbf{Command} & \textbf{Observed result} \\
 \hline
@@ -193,7 +238,7 @@ product report.
 \begin{table}[h]
 \centering
 \small
-\begin{tabular}{|p{0.25\linewidth}|r|r|r|p{0.23\linewidth}|}
+\begin{tabular}{|L{0.25\linewidth}|r|r|r|L{0.23\linewidth}|}
 \hline
 \textbf{Surface} & \textbf{FA viol.} & \textbf{Q viol.} & \textbf{Q unavail.} & \textbf{Notes} \\
 \hline

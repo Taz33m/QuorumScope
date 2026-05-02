@@ -2,7 +2,7 @@
 
 QuorumScope is a deterministic consistency-testing workbench for a single replicated register. It can replay curated counterexamples, generate bounded adversarial partition schedules, exhaustively enumerate a tiny finite scenario model, shrink discovered failures, validate a regression corpus, and check whether every successful read is linearizable.
 
-See `paper/quorumscope.tex` for the artifact technical report.
+See `paper/quorumscope.pdf` for the artifact technical report (`paper/quorumscope.tex` is the source).
 
 ## Technical Thesis
 
