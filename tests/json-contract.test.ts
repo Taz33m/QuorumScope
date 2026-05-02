@@ -58,6 +58,13 @@ describe("machine-readable CLI contracts", () => {
     expect(json.search.summary.unsafeViolations).toBe(50);
     expect(json.search.firstFailure.seed).toBe(143);
     expect(json.search.firstFailure.minimizedSteps).toBe(3);
+    expect(json.search.firstFailure.witness).toMatchObject({
+      type: "stale-read",
+      read: { id: "op2" },
+      priorWrite: { id: "op1" },
+      expected: "v143-0-x1",
+      observed: "v0",
+    });
     expect(json.exhaustive.config.maxOperations).toBe(3);
     expect(json.exhaustive.coverage.terminalHistories).toBe(1000);
     expect(json.exhaustive.unsafe.firstViolation.caseId).toBe("ex-000043");
@@ -68,7 +75,7 @@ describe("machine-readable CLI contracts", () => {
       mismatched: 0,
     });
     expect(json.evidence.search.witnessSummary).toBe(
-      "op3 read returned v0 after op2 write completed with v143-0.",
+      "op2 read returned v0 after op1 write completed with v143-0-x1.",
     );
     expect(json.evidence.search.witnessDetail).toContain("any legal linearization");
     expect(json.evidence.exhaustive.witnessSummary).toBe(

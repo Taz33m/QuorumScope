@@ -121,6 +121,30 @@ describe("adversarial search", () => {
     expect(output).toContain("--no-shrink");
   });
 
+  it("CLI reports the minimized witness when shrinking is enabled", () => {
+    const output = execFileSync(
+      "node",
+      [
+        "--import",
+        "tsx",
+        "src/cli/search.ts",
+        "--seed",
+        "143",
+        "--seeds",
+        "1",
+        "--protocol",
+        "unsafe",
+        "--shrink",
+      ],
+      { cwd: process.cwd(), encoding: "utf-8" },
+    );
+
+    expect(output).toContain("Shrink: enabled");
+    expect(output).toContain("Minimized steps: 3");
+    expect(output).toContain("op2 read returned v0 after op1 write completed with v143-0-x1.");
+    expect(output).not.toContain("op3 read returned v0 after op2 write completed with v143-0.");
+  });
+
   it("reports quorum availability tradeoff without bounded-search violations", () => {
     const result = runAdversarialSearch({ seed: 143, seeds: 10, protocol: "compare" });
 

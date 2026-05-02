@@ -50,7 +50,7 @@ function printSearchReport(): void {
   if (result.firstFailure) {
     const failure = result.firstFailure;
     const selected = protocol === "quorum" ? failure.quorum : failure.unsafe;
-    const witness = selected.analysis.verdict.witness;
+    const witness = selected.minimized?.witness ?? selected.analysis.verdict.witness;
     console.log(`First violation: seed ${failure.seed}`);
     console.log(`Original steps: ${failure.scenario.steps.length}`);
     console.log(

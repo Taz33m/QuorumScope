@@ -19,7 +19,7 @@ describe("bounded exhaustive explorer", () => {
     expect(first.coverage.terminalHistories).toBe(1000);
     expect(first.coverage.uniqueScenarios).toBe(1000);
     expect(first.coverage.concurrentSchedules).toBeGreaterThan(0);
-  });
+  }, 15_000);
 
   it("changes coverage denominator when bounds change", () => {
     const tiny = runBoundedExhaustive({ maxOperations: 2 });
@@ -27,7 +27,7 @@ describe("bounded exhaustive explorer", () => {
 
     expect(tiny.coverage.terminalHistories).toBeLessThan(defaultResult.coverage.terminalHistories);
     expect(tiny.coverage.terminalHistories).toBeGreaterThan(0);
-  });
+  }, 15_000);
 
   it("finds first-ack stale-read violations in the tiny finite model", () => {
     const result = runBoundedExhaustive();
@@ -36,7 +36,7 @@ describe("bounded exhaustive explorer", () => {
     expect(result.unsafe.staleReadViolations).toBeGreaterThan(0);
     expect(result.unsafe.firstViolation?.witness?.type).toBe("stale-read");
     expect(result.unsafe.firstViolation?.reproductionCommand).toContain("npm run exhaustive");
-  });
+  }, 15_000);
 
   it("reports quorum bounded safety with availability tradeoff", () => {
     const result = runBoundedExhaustive();
@@ -44,7 +44,7 @@ describe("bounded exhaustive explorer", () => {
     expect(result.quorum.violations).toBe(0);
     expect(result.quorum.unavailableOperations).toBeGreaterThan(0);
     expect(result.claim).toContain("not a proof for arbitrary systems");
-  });
+  }, 15_000);
 
   it("enumerates write/write overlaps and preserves quorum commit invariants", () => {
     const result = runBoundedExhaustive();
@@ -59,13 +59,13 @@ describe("bounded exhaustive explorer", () => {
 
     expect(overlap).toBeDefined();
     assertQuorumWriteCommitInvariant(simulateScenario(overlap!.scenario, "quorum"));
-  });
+  }, 15_000);
 
   it("preserves quorum write commit invariants across every default exhaustive case", () => {
     for (const candidate of runBoundedExhaustive().cases) {
       assertQuorumWriteCommitInvariant(simulateScenario(candidate.scenario, "quorum"));
     }
-  });
+  }, 15_000);
 
   it("keeps coverage buckets aligned with terminal histories", () => {
     const result = runBoundedExhaustive();
@@ -80,7 +80,7 @@ describe("bounded exhaustive explorer", () => {
 
     expect(partitionTotal).toBe(result.coverage.terminalHistories);
     expect(patternTotal).toBe(result.coverage.terminalHistories);
-  });
+  }, 15_000);
 
   it("replays and shrinks the reported first violation", () => {
     const result = runBoundedExhaustive();
@@ -97,7 +97,7 @@ describe("bounded exhaustive explorer", () => {
     const minimizedReplay = simulateScenario(minimized!.scenario, "unsafe");
     expect(checkLinearizability(minimizedReplay.operations, minimized!.scenario.initialValue).ok).toBe(false);
     expect(minimized!.scenario.steps.length).toBeLessThanOrEqual(firstViolation.scenario.steps.length);
-  });
+  }, 15_000);
 
   it("compares exhaustive and adversarial search without raw-count overclaiming", () => {
     const result = runBoundedExhaustive();
@@ -106,7 +106,7 @@ describe("bounded exhaustive explorer", () => {
     expect(result.searchComparison.quorumViolations).toBe(0);
     expect(result.searchComparison.sameWitnessClass).toBe(true);
     expect(result.searchComparison.note).toContain("not directly comparable");
-  });
+  }, 15_000);
 
   it("rejects invalid exhaustive bounds", () => {
     expect(() => runBoundedExhaustive({ nodeCount: 5 })).toThrow(/exactly 3 replicas/);

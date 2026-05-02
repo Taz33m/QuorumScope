@@ -157,7 +157,9 @@ export function buildProductReportJsonContract(report: ProductReport): ProductRe
             attempt: report.search.firstFailure.attempt,
             scenarioId: report.search.firstFailure.scenario.id,
             scenarioSteps: report.search.firstFailure.scenario.steps.length,
-            witness: report.search.firstFailure.unsafe.analysis.verdict.witness,
+            witness:
+              report.search.firstFailure.unsafe.minimized?.witness ??
+              report.search.firstFailure.unsafe.analysis.verdict.witness,
             minimizedSteps:
               report.search.firstFailure.unsafe.minimized?.scenario.steps.length ??
               report.search.firstFailure.scenario.steps.length,

@@ -92,7 +92,9 @@ export interface ProductReportEvidence {
 export function buildProductReportEvidence(
   input: ProductReportEvidenceInput,
 ): ProductReportEvidence {
-  const searchWitness = input.search.firstFailure?.unsafe.analysis.verdict.witness;
+  const searchWitness =
+    input.search.firstFailure?.unsafe.minimized?.witness ??
+    input.search.firstFailure?.unsafe.analysis.verdict.witness;
   const exhaustiveWitness = input.exhaustive.unsafe.firstViolation?.witness;
   const searchScenario =
     input.search.firstFailure?.unsafe.minimized?.scenario ?? input.search.firstFailure?.scenario;
@@ -268,6 +270,7 @@ function fixtureProvenanceEvidence(fixture: CorpusFixtureResult): FixtureProvena
 
 function scenarioBehaviorKey(scenario: Scenario): string {
   return JSON.stringify({
+    seed: scenario.seed,
     initialValue: scenario.initialValue,
     nodes: scenario.nodes,
     steps: scenario.steps,

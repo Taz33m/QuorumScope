@@ -1,7 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { buildProductReport } from "../src/core/report";
-import { formatProductReportEvidence } from "../src/core/reportEvidence";
+import {
+  buildProductReportEvidence,
+  formatProductReportEvidence,
+} from "../src/core/reportEvidence";
+import { buildSearchFixtureExport } from "../src/core/searchExport";
 
 describe("product report", () => {
   it("aggregates corpus, adversarial search, and tiny exhaustive evidence", () => {
@@ -24,7 +28,11 @@ describe("product report", () => {
     expect(report.boundedClaim).toContain("not a general proof");
     expect(report.reproduce.some((command) => command.includes("npm run search"))).toBe(true);
     expect(report.reproduce.some((command) => command.includes("npm run exhaustive"))).toBe(true);
-    expect(report.evidence.search.witnessSummary).toContain("read returned");
+    const exportedSearch = buildSearchFixtureExport(report.search)!;
+    expect(report.evidence.search.witnessSummary).toBe(exportedSearch.witnessSummary);
+    expect(report.evidence.search.witnessSummary).toBe(
+      "op2 read returned v0 after op1 write completed with v143-0-x1.",
+    );
     expect(report.evidence.exhaustive.witnessSummary).toContain("read returned");
     expect(report.evidence.search.corpusFixture?.id).toBe("search-143-minimized");
     expect(report.evidence.search.corpusFixture?.provenance).toMatchObject({
@@ -40,6 +48,25 @@ describe("product report", () => {
     });
     expect(report.evidence.boundedClaim).toBe(report.boundedClaim);
     expect(report.evidence.reproduce).toEqual(report.reproduce);
+  }, 15_000);
+
+  it("does not match corpus evidence when deterministic replay seed drifts", () => {
+    const report = buildProductReport();
+    const driftedCorpus = JSON.parse(JSON.stringify(report.corpus)) as typeof report.corpus;
+    const searchFixture = driftedCorpus.fixtures.find(
+      (fixture) => fixture.entry.id === "search-143-minimized",
+    )!;
+    searchFixture.scenario.seed += 1;
+
+    const evidence = buildProductReportEvidence({
+      corpus: driftedCorpus,
+      search: report.search,
+      exhaustive: report.exhaustive,
+      boundedClaim: report.boundedClaim,
+      reproduce: report.reproduce,
+    });
+
+    expect(evidence.search.corpusFixture).toBeUndefined();
   }, 15_000);
 
   it("CLI smoke prints a unified product report", () => {
