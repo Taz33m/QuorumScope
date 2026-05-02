@@ -9,18 +9,13 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/TypeScript-6.0-blue" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Vite%208-React%2019-646CFF" alt="Vite React" />
   <img src="https://img.shields.io/badge/verify%3Aproduct-passing-brightgreen" alt="Product verification passing" />
-  <img src="https://img.shields.io/badge/report-PDF-blueviolet" alt="Technical report" />
-  <img src="https://img.shields.io/badge/demo-video-red" alt="Demo video" />
+  <a href="paper/quorumscope.pdf"><img src="https://img.shields.io/badge/report-PDF-blueviolet" alt="Technical report" /></a>
+  <a href="https://youtu.be/8FtiTD_bMTE"><img src="https://img.shields.io/badge/demo-video-red" alt="Demo video" /></a>
   <img src="https://img.shields.io/badge/claims-bounded-important" alt="Bounded claims" />
-</p>
-
-<p align="center">
-  <a href="https://youtu.be/8FtiTD_bMTE">Demo Video</a> ·
-  <a href="paper/quorumscope.pdf">Technical Report</a>
 </p>
 
 QuorumScope tests a narrow distributed-systems failure mode: a replicated register can appear
@@ -37,11 +32,24 @@ evidence honestly.
 
 ## Preview
 
-<p align="center">
-  <a href="https://youtu.be/8FtiTD_bMTE">
-    <img src="assets/quorumscope-demo-cover.png" alt="QuorumScope demo video" width="760" />
-  </a>
-</p>
+<table>
+  <tr>
+    <td align="center" width="68%">
+      <a href="https://youtu.be/8FtiTD_bMTE">
+        <img src="assets/quorumscope-demo-cover.png" alt="QuorumScope demo video" width="680" />
+      </a>
+      <br />
+      <strong>Demo video</strong>
+    </td>
+    <td align="center" width="32%">
+      <a href="paper/quorumscope.pdf">
+        <img src="assets/quorumscope-paper-page1.png" alt="QuorumScope technical report first page" width="230" />
+      </a>
+      <br />
+      <strong>Technical report</strong>
+    </td>
+  </tr>
+</table>
 
 ## Quick Start
 
@@ -146,11 +154,8 @@ npm run exhaustive -- --case ex-000043 --max-ops 3 --topology 2 --clients 2 --se
 
 ## Artifact Report
 
-This project includes a short technical report:
-
-- PDF: [paper/quorumscope.pdf](paper/quorumscope.pdf)
-
-The report documents the system model, checker, counterexample search, tiny exhaustive explorer,
+This project includes a short technical report. The report badge and paper thumbnail link to the
+PDF. It documents the system model, checker, counterexample search, tiny exhaustive explorer,
 bounded claims, and limitations.
 
 ## Command Surface
