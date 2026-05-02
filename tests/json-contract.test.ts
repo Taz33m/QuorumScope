@@ -28,6 +28,13 @@ describe("machine-readable CLI contracts", () => {
       scenarioType: "curated-counterexample",
       ok: true,
     });
+    expect(json.fixtures.find((fixture: any) => fixture.id === "search-143-minimized"))
+      .toMatchObject({
+        provenance: {
+          source: "adversarial-search",
+          scenarioHash: "97bd97918ce8",
+        },
+      });
     expect(json.fixtures[0].tags).toContain("stale-read");
     expect(json.fixtures[0].results[0]).toMatchObject({
       protocol: "unsafe",
@@ -55,6 +62,11 @@ describe("machine-readable CLI contracts", () => {
     expect(json.exhaustive.coverage.terminalHistories).toBe(804);
     expect(json.exhaustive.unsafe.firstViolation.caseId).toBe("ex-000023");
     expect(json.exhaustive.quorum.violations).toBe(0);
+    expect(json.evidence.corpus.provenance).toEqual({
+      verified: 2,
+      notDeclared: 2,
+      mismatched: 0,
+    });
     expect(json.evidence.search.witnessSummary).toBe(
       "op3 read returned v0 after op2 write completed with v143-0.",
     );
@@ -65,10 +77,18 @@ describe("machine-readable CLI contracts", () => {
     expect(json.evidence.search.corpusFixture).toMatchObject({
       id: "search-143-minimized",
       fixture: "search-143-minimized.json",
+      provenance: {
+        status: "verified",
+        scenarioHash: "97bd97918ce8",
+      },
     });
     expect(json.evidence.exhaustive.corpusFixture).toMatchObject({
       id: "exhaustive-ex-000023",
       fixture: "exhaustive-ex-000023.json",
+      provenance: {
+        status: "verified",
+        scenarioHash: "13235af00ed4",
+      },
     });
     expect(json.evidence.reproduce).toEqual(json.reproduce);
     expect(json.evidence.search.reproductionCommand).toBe(json.reproduce[1]);

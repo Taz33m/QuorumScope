@@ -73,6 +73,9 @@ describe("human product report", () => {
     expect(output).toContain(
       `- quorum unavailable operations: ${contract.corpus.summary.quorumUnavailableOperations}`,
     );
+    expect(output).toContain(
+      `- provenance hashes: ${contract.evidence.corpus.provenance.verified} verified, ${contract.evidence.corpus.provenance.notDeclared} not declared, ${contract.evidence.corpus.provenance.mismatched} mismatched`,
+    );
 
     expect(output).toContain(`- seeds explored: ${contract.search.summary.attempts}`);
     expect(output).toContain(
@@ -91,6 +94,9 @@ describe("human product report", () => {
       `- minimized steps: ${contract.search.firstFailure?.minimizedSteps ?? "n/a"}`,
     );
     expect(output).toContain(`- first failure witness: ${contract.evidence.search.witnessSummary}`);
+    expect(output).toContain(
+      `- corpus fixture: search-143-minimized (search-143-minimized.json, hash 97bd97918ce8, provenance verified)`,
+    );
 
     expect(output).toContain(
       `- terminal histories checked: ${contract.exhaustive.coverage.terminalHistories}`,
@@ -115,6 +121,9 @@ describe("human product report", () => {
     );
     expect(output).toContain(
       `- first exhaustive witness: ${contract.evidence.exhaustive.witnessSummary}`,
+    );
+    expect(output).toContain(
+      `- corpus fixture: exhaustive-ex-000023 (exhaustive-ex-000023.json, hash 13235af00ed4, provenance verified)`,
     );
 
     expect(output).toContain(contract.boundedClaim);

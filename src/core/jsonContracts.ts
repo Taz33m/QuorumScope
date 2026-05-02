@@ -1,4 +1,9 @@
-import { collectCorpusIssues, type CorpusIssue, type CorpusRunResult } from "./corpus";
+import {
+  collectCorpusIssues,
+  type CorpusFixtureProvenance,
+  type CorpusIssue,
+  type CorpusRunResult,
+} from "./corpus";
 import type {
   ExhaustiveConfig,
   ExhaustiveCoverage,
@@ -31,6 +36,7 @@ export interface CorpusFixtureJson {
   scenarioType: string;
   tags: string[];
   scenarioHash: string;
+  provenance?: CorpusFixtureProvenance;
   ok: boolean;
   validationErrors: string[];
   issues: CorpusIssue[];
@@ -113,6 +119,7 @@ export function buildCorpusJsonContract(result: CorpusRunResult): CorpusJsonCont
       scenarioType: fixture.entry.scenarioType,
       tags: fixture.entry.tags,
       scenarioHash: fixture.scenarioHash,
+      provenance: fixture.entry.provenance,
       ok: fixture.ok,
       validationErrors: fixture.validationErrors,
       issues: fixture.issues,

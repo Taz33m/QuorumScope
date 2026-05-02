@@ -1,5 +1,6 @@
 import {
   collectCorpusIssues,
+  type CorpusFixtureProvenance,
   type CorpusFixtureResult,
   type CorpusIssue,
   type CorpusRunResult,
@@ -22,7 +23,23 @@ export interface CorpusFixtureReference {
   fixture: string;
   scenarioType: string;
   scenarioHash: string;
+  provenance?: FixtureProvenanceEvidence;
   tags: string[];
+}
+
+export type FixtureProvenanceStatus = "verified" | "not-declared" | "mismatch";
+
+export interface FixtureProvenanceEvidence {
+  source?: CorpusFixtureProvenance["source"];
+  scenarioHash?: string;
+  reproductionCommand?: string;
+  status: FixtureProvenanceStatus;
+}
+
+export interface CorpusProvenanceSummary {
+  verified: number;
+  notDeclared: number;
+  mismatched: number;
 }
 
 export interface ProductReportEvidence {
@@ -38,6 +55,7 @@ export interface ProductReportEvidence {
     quorumViolations: number;
     quorumUnavailableOperations: number;
     issues: CorpusIssue[];
+    provenance: CorpusProvenanceSummary;
     claim: string;
   };
   search: {
@@ -79,6 +97,7 @@ export function buildProductReportEvidence(
   const searchScenario =
     input.search.firstFailure?.unsafe.minimized?.scenario ?? input.search.firstFailure?.scenario;
   const exhaustiveScenario = input.exhaustive.unsafe.firstViolation?.scenario;
+  const corpusIssues = collectCorpusIssues(input.corpus);
   return {
     ok: input.corpus.ok,
     protocols: {
@@ -91,7 +110,8 @@ export function buildProductReportEvidence(
       unsafeViolations: input.corpus.summary.unsafeViolations,
       quorumViolations: input.corpus.summary.quorumViolations,
       quorumUnavailableOperations: input.corpus.summary.quorumUnavailableOperations,
-      issues: collectCorpusIssues(input.corpus),
+      issues: corpusIssues,
+      provenance: summarizeCorpusProvenance(input.corpus.fixtures),
       claim: input.corpus.claim,
     },
     search: {
@@ -146,6 +166,7 @@ export function formatProductReportEvidence(evidence: ProductReportEvidence): st
     `- first-ack violations: ${evidence.corpus.unsafeViolations}`,
     `- quorum violations: ${evidence.corpus.quorumViolations}`,
     `- quorum unavailable operations: ${evidence.corpus.quorumUnavailableOperations}`,
+    `- provenance hashes: ${evidence.corpus.provenance.verified} verified, ${evidence.corpus.provenance.notDeclared} not declared, ${evidence.corpus.provenance.mismatched} mismatched`,
     "",
     "Adversarial search:",
     `- seeds explored: ${evidence.search.seedsExplored}`,
@@ -200,7 +221,47 @@ function toFixtureReference(fixture: CorpusFixtureResult): CorpusFixtureReferenc
     fixture: fixture.entry.fixture,
     scenarioType: fixture.entry.scenarioType,
     scenarioHash: fixture.scenarioHash,
+    provenance: fixtureProvenanceEvidence(fixture),
     tags: fixture.entry.tags,
+  };
+}
+
+function summarizeCorpusProvenance(
+  fixtures: readonly CorpusFixtureResult[],
+): CorpusProvenanceSummary {
+  const summary: CorpusProvenanceSummary = {
+    verified: 0,
+    notDeclared: 0,
+    mismatched: 0,
+  };
+  for (const fixture of fixtures) {
+    const status = fixtureProvenanceEvidence(fixture).status;
+    if (status === "verified") {
+      summary.verified += 1;
+    } else if (status === "mismatch") {
+      summary.mismatched += 1;
+    } else {
+      summary.notDeclared += 1;
+    }
+  }
+  return summary;
+}
+
+function fixtureProvenanceEvidence(fixture: CorpusFixtureResult): FixtureProvenanceEvidence {
+  const provenance = fixture.entry.provenance;
+  const hasMismatch = fixture.issues.some((issue) => issue.code === "fixture.provenance-hash");
+  if (!provenance?.scenarioHash) {
+    return {
+      source: provenance?.source,
+      reproductionCommand: provenance?.reproductionCommand,
+      status: "not-declared",
+    };
+  }
+  return {
+    source: provenance.source,
+    scenarioHash: provenance.scenarioHash,
+    reproductionCommand: provenance.reproductionCommand,
+    status: hasMismatch ? "mismatch" : "verified",
   };
 }
 
@@ -213,5 +274,8 @@ function scenarioBehaviorKey(scenario: Scenario): string {
 }
 
 function formatFixtureReference(fixture: CorpusFixtureReference | undefined): string {
-  return fixture ? `${fixture.id} (${fixture.fixture})` : "not saved in corpus";
+  if (!fixture) {
+    return "not saved in corpus";
+  }
+  return `${fixture.id} (${fixture.fixture}, hash ${fixture.scenarioHash}, provenance ${fixture.provenance?.status ?? "not-declared"})`;
 }
