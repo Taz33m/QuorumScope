@@ -52,7 +52,17 @@ export function buildExhaustiveFixtureExport(
       ? "First stale-read witness discovered by the default tiny bounded exhaustive explorer. This fixture preserves the enumerated case for corpus replay."
       : "Scenario enumerated by the tiny bounded exhaustive explorer. This fixture preserves the enumerated case for corpus replay.",
   };
-  const manifestEntry: CorpusManifestEntry = {
+  const source = {
+    caseId: found.caseId,
+    scenarioHash: found.scenarioHash,
+    reproductionCommand: reproductionCommand(found.caseId, result.config),
+    maxOperations: result.config.maxOperations,
+    maxTopologyChanges: result.config.maxTopologyChanges,
+    clientCount: result.config.clientCount,
+    seed: result.config.seed,
+    includeConcurrent: result.config.includeConcurrent,
+  };
+  let manifestEntry: CorpusManifestEntry = {
     id: fixtureId,
     title: found.unsafe.violation
       ? `Exhaustive ${found.caseId} counterexample`
@@ -70,18 +80,18 @@ export function buildExhaustiveFixtureExport(
       "Exported from the bounded exhaustive explorer. Save scenario as the fixture path and add this entry to examples/corpus.manifest.json to promote it into the replay corpus.",
     tags: tagsFor(found),
   };
+  const initialPromotionCheck = validateCorpusFixtureCandidate(manifestEntry, scenario);
+  manifestEntry = {
+    ...manifestEntry,
+    provenance: {
+      source: "bounded-exhaustive",
+      scenarioHash: initialPromotionCheck.scenarioHash,
+      reproductionCommand: source.reproductionCommand,
+    },
+  };
 
   return {
-    source: {
-      caseId: found.caseId,
-      scenarioHash: found.scenarioHash,
-      reproductionCommand: reproductionCommand(found.caseId, result.config),
-      maxOperations: result.config.maxOperations,
-      maxTopologyChanges: result.config.maxTopologyChanges,
-      clientCount: result.config.clientCount,
-      seed: result.config.seed,
-      includeConcurrent: result.config.includeConcurrent,
-    },
+    source,
     scenario,
     manifestEntry,
     promotionCheck: validateCorpusFixtureCandidate(manifestEntry, scenario),

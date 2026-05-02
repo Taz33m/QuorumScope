@@ -35,6 +35,10 @@ describe("search fixture export", () => {
       id: "search-143-minimized",
       fixture: "search-143-minimized.json",
       scenarioType: "generated-minimized-counterexample",
+      provenance: {
+        source: "adversarial-search",
+        scenarioHash: "97bd97918ce8",
+      },
       protocols: ["unsafe", "quorum"],
       expected: {
         unsafe: {

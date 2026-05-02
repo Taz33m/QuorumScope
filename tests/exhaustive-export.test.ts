@@ -42,6 +42,10 @@ describe("exhaustive fixture export", () => {
       id: "exhaustive-ex-000023",
       fixture: "exhaustive-ex-000023.json",
       scenarioType: "exhaustive-counterexample",
+      provenance: {
+        source: "bounded-exhaustive",
+        scenarioHash: "13235af00ed4",
+      },
       expected: {
         unsafe: {
           verdict: "violation",
@@ -67,6 +71,9 @@ describe("exhaustive fixture export", () => {
       id: "exhaustive-ex-000001",
       fixture: "exhaustive-ex-000001.json",
       scenarioType: "exhaustive-safe-history",
+      provenance: {
+        source: "bounded-exhaustive",
+      },
       expected: {
         unsafe: {
           verdict: "linearizable",

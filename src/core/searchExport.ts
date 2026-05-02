@@ -49,7 +49,14 @@ export function buildSearchFixtureExport(
     description:
       "Minimized first-ack stale-read counterexample discovered by the bounded adversarial search. This is a replay fixture, not an exhaustive proof.",
   };
-  const manifestEntry: CorpusManifestEntry = {
+  const source = {
+    seed: failure.seed,
+    attempt: failure.attempt,
+    reproductionCommand: reproductionCommand(failure.seed, "compare", result.config),
+    originalSteps: failure.scenario.steps.length,
+    minimizedSteps: minimized.steps.length,
+  };
+  let manifestEntry: CorpusManifestEntry = {
     id: fixtureId,
     title: `Minimized adversarial search failure ${failure.seed}:${failure.attempt}`,
     fixture,
@@ -63,15 +70,18 @@ export function buildSearchFixtureExport(
       "Exported from adversarial search. Save scenario as the fixture path and add this entry to examples/corpus.manifest.json to promote it into the replay corpus.",
     tags: ["generated", "minimized", "stale-read", "partition", "counterexample"],
   };
+  const initialPromotionCheck = validateCorpusFixtureCandidate(manifestEntry, scenario);
+  manifestEntry = {
+    ...manifestEntry,
+    provenance: {
+      source: "adversarial-search",
+      scenarioHash: initialPromotionCheck.scenarioHash,
+      reproductionCommand: source.reproductionCommand,
+    },
+  };
 
   return {
-    source: {
-      seed: failure.seed,
-      attempt: failure.attempt,
-      reproductionCommand: reproductionCommand(failure.seed, "compare", result.config),
-      originalSteps: failure.scenario.steps.length,
-      minimizedSteps: minimized.steps.length,
-    },
+    source,
     scenario,
     manifestEntry,
     promotionCheck: validateCorpusFixtureCandidate(manifestEntry, scenario),

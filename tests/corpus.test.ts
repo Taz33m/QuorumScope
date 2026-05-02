@@ -78,6 +78,36 @@ describe("manifest-driven regression corpus", () => {
     expect(result.claim).toContain("not exhaustive proof");
   });
 
+  it("checks saved fixture hashes against corpus provenance", () => {
+    const result = runCorpus();
+    const searchFixture = result.fixtures.find(
+      (fixture) => fixture.entry.id === "search-143-minimized",
+    )!;
+    const exhaustiveFixture = result.fixtures.find(
+      (fixture) => fixture.entry.id === "exhaustive-ex-000023",
+    )!;
+
+    expect(searchFixture.scenarioHash).toBe(searchFixture.entry.provenance?.scenarioHash);
+    expect(exhaustiveFixture.scenarioHash).toBe(exhaustiveFixture.entry.provenance?.scenarioHash);
+
+    const manifest = cloneManifest(loadCorpusManifest());
+    manifest.fixtures.find((fixture) => fixture.id === "search-143-minimized")!.provenance = {
+      source: "adversarial-search",
+      scenarioHash: "000000000000",
+      reproductionCommand: "npm run search -- --seed 143 --seeds 1 --protocol compare",
+    };
+    const drifted = runCorpus({ manifest, checkFileCoverage: false });
+
+    expect(drifted.ok).toBe(false);
+    expect(collectCorpusIssues(drifted)[0]).toMatchObject({
+      code: "fixture.provenance-hash",
+      fixtureId: "search-143-minimized",
+      fixture: "search-143-minimized.json",
+      expected: "000000000000",
+      actual: "97bd97918ce8",
+    });
+  });
+
   it("fails the corpus when an expected outcome drifts", () => {
     const manifest = cloneManifest(loadCorpusManifest());
     manifest.fixtures[0]!.expected.unsafe = {
@@ -140,6 +170,34 @@ describe("manifest-driven regression corpus", () => {
 
   it("rejects malformed manifests and unmanifested public JSON fixtures", () => {
     expect(validateCorpusManifest({ version: 2, fixtures: [] }).ok).toBe(false);
+    expect(
+      validateCorpusManifest({
+        version: 1,
+        fixtures: [
+          {
+            id: "bad-provenance",
+            title: "Bad provenance",
+            fixture: "split-brain-stale-read.json",
+            scenarioType: "curated-counterexample",
+            protocols: ["unsafe"],
+            expected: {
+              unsafe: {
+                verdict: "violation",
+                unavailableOperations: 0,
+              },
+            },
+            provenance: {
+              source: "somewhere-else",
+              scenarioHash: "not-a-hash",
+            },
+            tags: ["curated"],
+          },
+        ],
+      }).errors,
+    ).toEqual([
+      "manifest.fixtures[0].provenance.source must be curated, adversarial-search, or bounded-exhaustive",
+      "manifest.fixtures[0].provenance.scenarioHash must be a 12-character lowercase hex hash",
+    ]);
 
     const dir = mkdtempSync(join(tmpdir(), "quorumscope-corpus-"));
     writeFileSync(join(dir, "a.json"), JSON.stringify(splitBrainStaleReadScenario));

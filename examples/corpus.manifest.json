@@ -40,6 +40,11 @@
           "finalValue": "v143-0-x1"
         }
       },
+      "provenance": {
+        "source": "adversarial-search",
+        "scenarioHash": "97bd97918ce8",
+        "reproductionCommand": "npm run search -- --seed 143 --seeds 1 --protocol compare --nodes 5 --ops 8 --clients 3 --read-ratio 0.55 --chaos 0.75 --concurrency 0.45 --shrink"
+      },
       "notes": "Saved minimized counterexample from the default adversarial search seed.",
       "tags": ["generated", "minimized", "stale-read", "partition", "counterexample"]
     },
@@ -81,6 +86,11 @@
           "unavailableOperations": 2,
           "finalValue": "v0"
         }
+      },
+      "provenance": {
+        "source": "bounded-exhaustive",
+        "scenarioHash": "13235af00ed4",
+        "reproductionCommand": "npm run exhaustive -- --case ex-000023 --max-ops 3 --topology 2 --clients 2 --seed 7001 --show"
       },
       "notes": "Saved first violation from the default tiny bounded exhaustive model.",
       "tags": ["exhaustive", "concurrent", "stale-read", "partition", "counterexample"]

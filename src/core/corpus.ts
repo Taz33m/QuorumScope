@@ -10,6 +10,7 @@ export const corpusManifestFileName = "corpus.manifest.json";
 
 export type ExpectedVerdict = "linearizable" | "violation";
 export type ExpectedViolationKind = "stale-read" | "no-sequentialization";
+export type CorpusFixtureSource = "curated" | "adversarial-search" | "bounded-exhaustive";
 
 export interface CorpusProtocolExpectation {
   verdict: ExpectedVerdict;
@@ -21,6 +22,7 @@ export interface CorpusProtocolExpectation {
 export type CorpusIssueCode =
   | "fixture.validation"
   | "fixture.coverage"
+  | "fixture.provenance-hash"
   | "expectation.verdict"
   | "expectation.violation-kind"
   | "expectation.unavailable-operations"
@@ -43,8 +45,15 @@ export interface CorpusManifestEntry {
   scenarioType: string;
   protocols: ProtocolName[];
   expected: Partial<Record<ProtocolName, CorpusProtocolExpectation>>;
+  provenance?: CorpusFixtureProvenance;
   notes?: string;
   tags: string[];
+}
+
+export interface CorpusFixtureProvenance {
+  source: CorpusFixtureSource;
+  scenarioHash?: string;
+  reproductionCommand?: string;
 }
 
 export interface CorpusManifest {
@@ -148,6 +157,7 @@ export function validateCorpusManifest(value: unknown): { ok: boolean; errors: s
     const file = requireString(fixture, "fixture", path, errors);
     requireString(fixture, "scenarioType", path, errors);
     validateStringArray(fixture.tags, `${path}.tags`, errors);
+    validateProvenance(fixture.provenance, `${path}.provenance`, errors);
     if (typeof fixture.notes !== "undefined" && typeof fixture.notes !== "string") {
       errors.push(`${path}.notes must be a string when present`);
     }
@@ -252,17 +262,19 @@ export function runCorpusEntryScenario(
   }
   assertValidScenario(scenarioValue, entry.fixture);
   const scenario = scenarioValue;
+  const scenarioHash = hashScenario(scenario);
   const results = entry.protocols.map((protocol) =>
     evaluateProtocolExpectation(entry, protocol, scenario, mustGetExpectation(entry, protocol)),
   );
+  const issues = evaluateProvenance(entry, scenarioHash);
   return {
     entry,
     scenario,
-    scenarioHash: hashScenario(scenario),
+    scenarioHash,
     results,
     validationErrors: [],
-    issues: [],
-    ok: results.every((result) => result.mismatches.length === 0),
+    issues,
+    ok: issues.length === 0 && results.every((result) => result.mismatches.length === 0),
   };
 }
 
@@ -508,6 +520,51 @@ function validateExpectations(
       errors.push(`${expectationPath}.finalValue must be a string when present`);
     }
   }
+}
+
+function validateProvenance(value: unknown, path: string, errors: string[]): void {
+  if (typeof value === "undefined") {
+    return;
+  }
+  if (!isRecord(value)) {
+    errors.push(`${path} must be an object when present`);
+    return;
+  }
+  if (
+    value.source !== "curated" &&
+    value.source !== "adversarial-search" &&
+    value.source !== "bounded-exhaustive"
+  ) {
+    errors.push(`${path}.source must be curated, adversarial-search, or bounded-exhaustive`);
+  }
+  if (typeof value.scenarioHash !== "undefined") {
+    if (typeof value.scenarioHash !== "string" || !/^[a-f0-9]{12}$/.test(value.scenarioHash)) {
+      errors.push(`${path}.scenarioHash must be a 12-character lowercase hex hash`);
+    }
+  }
+  if (
+    typeof value.reproductionCommand !== "undefined" &&
+    (typeof value.reproductionCommand !== "string" || value.reproductionCommand.length === 0)
+  ) {
+    errors.push(`${path}.reproductionCommand must be a non-empty string when present`);
+  }
+}
+
+function evaluateProvenance(entry: CorpusManifestEntry, scenarioHash: string): CorpusIssue[] {
+  if (!entry.provenance?.scenarioHash || entry.provenance.scenarioHash === scenarioHash) {
+    return [];
+  }
+  return [
+    makeIssue(
+      "fixture.provenance-hash",
+      entry.id,
+      entry.fixture,
+      `expected fixture hash ${entry.provenance.scenarioHash} from provenance, got ${scenarioHash}`,
+      undefined,
+      entry.provenance.scenarioHash,
+      scenarioHash,
+    ),
+  ];
 }
 
 function validateProtocols(value: unknown, path: string, errors: string[]): ProtocolName[] {
