@@ -5,11 +5,16 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { splitBrainStaleReadScenario } from "../src/core";
 import type { CorpusManifest } from "../src/core/corpus";
+import { runCorpus } from "../src/core/corpus";
+import { buildCorpusJsonContract, buildProductReportJsonContract } from "../src/core/jsonContracts";
+import { buildProductReport } from "../src/core/report";
 
 describe("machine-readable CLI contracts", () => {
   it("prints a versioned corpus JSON contract with fixture expectations", () => {
     const json = runJson("src/cli/corpus.ts");
+    const expected = JSON.parse(JSON.stringify(buildCorpusJsonContract(runCorpus())));
 
+    expect(json).toEqual(expected);
     expect(json.schemaVersion).toBe(1);
     expect(json.ok).toBe(true);
     expect(json.manifest.version).toBe(1);
@@ -35,7 +40,9 @@ describe("machine-readable CLI contracts", () => {
 
   it("prints a versioned product report JSON contract with bounded claims", () => {
     const json = runJson("src/cli/report.ts");
+    const expected = JSON.parse(JSON.stringify(buildProductReportJsonContract(buildProductReport())));
 
+    expect(json).toEqual(expected);
     expect(json.schemaVersion).toBe(1);
     expect(json.ok).toBe(true);
     expect(json.corpus.summary.fixtures).toBe(3);

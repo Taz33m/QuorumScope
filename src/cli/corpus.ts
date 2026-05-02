@@ -1,10 +1,10 @@
 import {
-  collectCorpusIssues,
   fixtureDisplayName,
   runCorpus,
   type CorpusFixtureResult,
   type CorpusProtocolResult,
 } from "../core/corpus";
+import { buildCorpusJsonContract } from "../core/jsonContracts";
 
 if (process.argv.includes("--help")) {
   printHelpAndExit();
@@ -17,39 +17,7 @@ const result = runCorpus({ manifestPath });
 if (json) {
   console.log(
     JSON.stringify(
-      {
-        schemaVersion: 1,
-        ok: result.ok,
-        manifest: {
-          path: result.manifestPath,
-          version: result.manifest.version,
-          fixtureCount: result.manifest.fixtures.length,
-        },
-        summary: result.summary,
-        issues: collectCorpusIssues(result),
-        fixtures: result.fixtures.map((fixture) => ({
-          id: fixture.entry.id,
-          title: fixture.entry.title,
-          fixture: fixture.entry.fixture,
-          scenarioType: fixture.entry.scenarioType,
-          tags: fixture.entry.tags,
-          scenarioHash: fixture.scenarioHash,
-          ok: fixture.ok,
-          validationErrors: fixture.validationErrors,
-          issues: fixture.issues,
-          results: fixture.results.map((protocol) => ({
-            protocol: protocol.protocol,
-            verdict: protocol.verdict,
-            violationKind: protocol.violationKind,
-            unavailableOperations: protocol.unavailableOperations,
-            finalValue: protocol.finalValue,
-            minimizedSteps: protocol.minimizedSteps,
-            mismatches: protocol.mismatches,
-            issues: protocol.issues,
-          })),
-        })),
-        claim: result.claim,
-      },
+      buildCorpusJsonContract(result),
       null,
       2,
     ),

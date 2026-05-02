@@ -1,5 +1,5 @@
 import { buildProductReport } from "../core/report";
-import { collectCorpusIssues } from "../core/corpus";
+import { buildProductReportJsonContract } from "../core/jsonContracts";
 
 if (process.argv.includes("--help")) {
   printHelpAndExit();
@@ -12,60 +12,7 @@ const report = buildProductReport({ corpus: { manifestPath } });
 if (json) {
   console.log(
     JSON.stringify(
-      {
-        schemaVersion: 1,
-        ok: report.corpus.ok,
-        corpus: {
-          ok: report.corpus.ok,
-          summary: report.corpus.summary,
-          issues: collectCorpusIssues(report.corpus),
-          claim: report.corpus.claim,
-        },
-        search: {
-          config: report.search.config,
-          summary: report.search.summary,
-          firstFailure: report.search.firstFailure
-            ? {
-                seed: report.search.firstFailure.seed,
-                attempt: report.search.firstFailure.attempt,
-                scenarioId: report.search.firstFailure.scenario.id,
-                scenarioSteps: report.search.firstFailure.scenario.steps.length,
-                witness: report.search.firstFailure.unsafe.analysis.verdict.witness,
-                minimizedSteps:
-                  report.search.firstFailure.unsafe.minimized?.scenario.steps.length ??
-                  report.search.firstFailure.scenario.steps.length,
-              }
-            : undefined,
-          claim: report.search.claim,
-        },
-        exhaustive: {
-          config: report.exhaustive.config,
-          coverage: report.exhaustive.coverage,
-          unsafe: {
-            terminalHistories: report.exhaustive.unsafe.terminalHistories,
-            violations: report.exhaustive.unsafe.violations,
-            staleReadViolations: report.exhaustive.unsafe.staleReadViolations,
-            unavailableOperations: report.exhaustive.unsafe.unavailableOperations,
-            firstViolation: report.exhaustive.unsafe.firstViolation
-              ? {
-                  caseId: report.exhaustive.unsafe.firstViolation.caseId,
-                  scenarioHash: report.exhaustive.unsafe.firstViolation.scenarioHash,
-                  reproductionCommand: report.exhaustive.unsafe.firstViolation.reproductionCommand,
-                }
-              : undefined,
-          },
-          quorum: {
-            terminalHistories: report.exhaustive.quorum.terminalHistories,
-            violations: report.exhaustive.quorum.violations,
-            staleReadViolations: report.exhaustive.quorum.staleReadViolations,
-            unavailableOperations: report.exhaustive.quorum.unavailableOperations,
-          },
-          searchComparison: report.exhaustive.searchComparison,
-          claim: report.exhaustive.claim,
-        },
-        boundedClaim: report.boundedClaim,
-        reproduce: report.reproduce,
-      },
+      buildProductReportJsonContract(report),
       null,
       2,
     ),
