@@ -1,5 +1,10 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { splitBrainStaleReadScenario } from "../src/core";
+import type { CorpusManifest } from "../src/core/corpus";
 
 describe("machine-readable CLI contracts", () => {
   it("prints a versioned corpus JSON contract with fixture expectations", () => {
@@ -46,6 +51,41 @@ describe("machine-readable CLI contracts", () => {
     expect(json.boundedClaim).toContain("not a general proof");
     expect(json.reproduce.some((command: string) => command.includes("npm run exhaustive"))).toBe(true);
   });
+
+  it("keeps failing corpus JSON parseable with stable issue payloads", () => {
+    const manifestPath = writeFailingCorpusFixture();
+    const result = runJsonProcess("src/cli/corpus.ts", ["--manifest", manifestPath, "--json"]);
+
+    expect(result.status).toBe(1);
+    const json = JSON.parse(result.stdout) as Record<string, any>;
+    expect(json.schemaVersion).toBe(1);
+    expect(json.ok).toBe(false);
+    expect(json.issues[0]).toMatchObject({
+      code: "expectation.verdict",
+      fixtureId: "bad-split-brain",
+      fixture: "bad-split-brain.json",
+      protocol: "unsafe",
+      expected: "linearizable",
+      actual: "violation",
+    });
+  });
+
+  it("keeps failing product report JSON parseable with corpus issues", () => {
+    const manifestPath = writeFailingCorpusFixture();
+    const result = runJsonProcess("src/cli/report.ts", ["--manifest", manifestPath, "--json"]);
+
+    expect(result.status).toBe(1);
+    const json = JSON.parse(result.stdout) as Record<string, any>;
+    expect(json.schemaVersion).toBe(1);
+    expect(json.ok).toBe(false);
+    expect(json.corpus.issues[0]).toMatchObject({
+      code: "expectation.verdict",
+      fixtureId: "bad-split-brain",
+      protocol: "unsafe",
+    });
+    expect(json.search.summary.unsafeViolations).toBe(50);
+    expect(json.exhaustive.coverage.terminalHistories).toBe(804);
+  });
 });
 
 function runJson(script: string): Record<string, any> {
@@ -54,4 +94,39 @@ function runJson(script: string): Record<string, any> {
     encoding: "utf-8",
   });
   return JSON.parse(output) as Record<string, any>;
+}
+
+function runJsonProcess(script: string, args: readonly string[]) {
+  return spawnSync("node", ["--import", "tsx", script, ...args], {
+    cwd: process.cwd(),
+    encoding: "utf-8",
+  });
+}
+
+function writeFailingCorpusFixture(): string {
+  const dir = mkdtempSync(join(tmpdir(), "quorumscope-json-contract-"));
+  writeFileSync(join(dir, "bad-split-brain.json"), JSON.stringify(splitBrainStaleReadScenario));
+  const manifest: CorpusManifest = {
+    version: 1,
+    fixtures: [
+      {
+        id: "bad-split-brain",
+        title: "Bad split-brain expectation",
+        fixture: "bad-split-brain.json",
+        scenarioType: "test-mismatch",
+        protocols: ["unsafe"],
+        expected: {
+          unsafe: {
+            verdict: "linearizable",
+            unavailableOperations: 0,
+          },
+        },
+        notes: "Deliberately wrong expectation for JSON contract testing.",
+        tags: ["test", "mismatch"],
+      },
+    ],
+  };
+  const manifestPath = join(dir, "corpus.manifest.json");
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+  return manifestPath;
 }

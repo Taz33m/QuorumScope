@@ -1,4 +1,4 @@
-import { runCorpus, type CorpusRunResult } from "./corpus";
+import { runCorpus, type CorpusRunResult, type RunCorpusOptions } from "./corpus";
 import { runBoundedExhaustive, type ExhaustiveResult } from "./exhaustive";
 import { reproductionCommand, runAdversarialSearch } from "./search";
 import type { AdversarialSearchResult } from "./types";
@@ -11,8 +11,12 @@ export interface ProductReport {
   reproduce: string[];
 }
 
-export function buildProductReport(): ProductReport {
-  const corpus = runCorpus();
+export interface ProductReportOptions {
+  corpus?: RunCorpusOptions;
+}
+
+export function buildProductReport(options: ProductReportOptions = {}): ProductReport {
+  const corpus = runCorpus(options.corpus);
   const search = runAdversarialSearch();
   const exhaustive = runBoundedExhaustive();
   return {

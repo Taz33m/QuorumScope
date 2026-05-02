@@ -10,8 +10,9 @@ if (process.argv.includes("--help")) {
   printHelpAndExit();
 }
 
+const manifestPath = parseManifestPath(process.argv.slice(2));
 const json = process.argv.includes("--json");
-const result = runCorpus();
+const result = runCorpus({ manifestPath });
 
 if (json) {
   console.log(
@@ -119,8 +120,21 @@ function printHelpAndExit(): never {
   console.log(`Usage: npm run corpus -- [options]
 
 Options:
+  --manifest <path>  Corpus manifest path, default examples/corpus.manifest.json
   --json     Print machine-readable corpus replay results
   --help     Show this help
 `);
   process.exit(0);
+}
+
+function parseManifestPath(args: readonly string[]): string | undefined {
+  const index = args.indexOf("--manifest");
+  if (index === -1) {
+    return undefined;
+  }
+  const value = args[index + 1];
+  if (!value || value.startsWith("--")) {
+    throw new Error("--manifest requires a path.");
+  }
+  return value;
 }
