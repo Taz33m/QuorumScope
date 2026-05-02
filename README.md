@@ -10,9 +10,9 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
-  <img src="https://img.shields.io/badge/TypeScript-5.x-blue" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Vite-React-646CFF" alt="Vite React" />
-  <img src="https://img.shields.io/badge/tests-verify%3Aproduct-passing-brightgreen" alt="Product verification passing" />
+  <img src="https://img.shields.io/badge/TypeScript-6.0-blue" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite%208-React%2019-646CFF" alt="Vite React" />
+  <img src="https://img.shields.io/badge/verify%3Aproduct-passing-brightgreen" alt="Product verification passing" />
   <img src="https://img.shields.io/badge/report-PDF-blueviolet" alt="Technical report" />
   <img src="https://img.shields.io/badge/demo-video-red" alt="Demo video" />
   <img src="https://img.shields.io/badge/claims-bounded-important" alt="Bounded claims" />
@@ -20,8 +20,7 @@
 
 <p align="center">
   <a href="https://youtu.be/8FtiTD_bMTE">Demo Video</a> ·
-  <a href="paper/quorumscope.pdf">Technical Report</a> ·
-  <a href="paper/quorumscope.tex">Report Source</a>
+  <a href="paper/quorumscope.pdf">Technical Report</a>
 </p>
 
 QuorumScope tests a narrow distributed-systems failure mode: a replicated register can appear
@@ -150,7 +149,6 @@ npm run exhaustive -- --case ex-000043 --max-ops 3 --topology 2 --clients 2 --se
 This project includes a short technical report:
 
 - PDF: [paper/quorumscope.pdf](paper/quorumscope.pdf)
-- Source: [paper/quorumscope.tex](paper/quorumscope.tex)
 
 The report documents the system model, checker, counterexample search, tiny exhaustive explorer,
 bounded claims, and limitations.
