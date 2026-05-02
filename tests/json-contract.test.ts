@@ -18,11 +18,11 @@ describe("machine-readable CLI contracts", () => {
     expect(json.schemaVersion).toBe(1);
     expect(json.ok).toBe(true);
     expect(json.manifest.version).toBe(1);
-    expect(json.manifest.fixtureCount).toBe(3);
+    expect(json.manifest.fixtureCount).toBe(4);
     expect(json.issues).toEqual([]);
-    expect(json.summary.expectedMatched).toBe(6);
+    expect(json.summary.expectedMatched).toBe(8);
     expect(json.summary.quorumViolations).toBe(0);
-    expect(json.fixtures).toHaveLength(3);
+    expect(json.fixtures).toHaveLength(4);
     expect(json.fixtures[0]).toMatchObject({
       id: "split-brain-stale-read",
       scenarioType: "curated-counterexample",
@@ -45,7 +45,7 @@ describe("machine-readable CLI contracts", () => {
     expect(json).toEqual(expected);
     expect(json.schemaVersion).toBe(1);
     expect(json.ok).toBe(true);
-    expect(json.corpus.summary.fixtures).toBe(3);
+    expect(json.corpus.summary.fixtures).toBe(4);
     expect(json.corpus.issues).toEqual([]);
     expect(json.search.config.seed).toBe(143);
     expect(json.search.summary.unsafeViolations).toBe(50);
@@ -62,6 +62,14 @@ describe("machine-readable CLI contracts", () => {
     expect(json.evidence.exhaustive.witnessSummary).toBe(
       "op3 read returned v0 after op1 write completed with v1.",
     );
+    expect(json.evidence.search.corpusFixture).toMatchObject({
+      id: "search-143-minimized",
+      fixture: "search-143-minimized.json",
+    });
+    expect(json.evidence.exhaustive.corpusFixture).toMatchObject({
+      id: "exhaustive-ex-000023",
+      fixture: "exhaustive-ex-000023.json",
+    });
     expect(json.evidence.reproduce).toEqual(json.reproduce);
     expect(json.evidence.search.reproductionCommand).toBe(json.reproduce[1]);
     expect(json.evidence.exhaustive.reproductionCommand).toBe(json.reproduce[2]);

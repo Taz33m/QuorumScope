@@ -1,7 +1,12 @@
-import { collectCorpusIssues, type CorpusIssue, type CorpusRunResult } from "./corpus";
+import {
+  collectCorpusIssues,
+  type CorpusFixtureResult,
+  type CorpusIssue,
+  type CorpusRunResult,
+} from "./corpus";
 import type { ExhaustiveResult } from "./exhaustive";
 import { detailWitness, summarizeWitness } from "./explanations";
-import type { AdversarialSearchResult } from "./types";
+import type { AdversarialSearchResult, Scenario } from "./types";
 
 export interface ProductReportEvidenceInput {
   corpus: CorpusRunResult;
@@ -9,6 +14,15 @@ export interface ProductReportEvidenceInput {
   exhaustive: ExhaustiveResult;
   boundedClaim: string;
   reproduce: string[];
+}
+
+export interface CorpusFixtureReference {
+  id: string;
+  title: string;
+  fixture: string;
+  scenarioType: string;
+  scenarioHash: string;
+  tags: string[];
 }
 
 export interface ProductReportEvidence {
@@ -36,6 +50,7 @@ export interface ProductReportEvidence {
     witnessSummary?: string;
     witnessDetail?: string;
     reproductionCommand: string;
+    corpusFixture?: CorpusFixtureReference;
     claim: string;
   };
   exhaustive: {
@@ -49,6 +64,7 @@ export interface ProductReportEvidence {
     witnessSummary?: string;
     witnessDetail?: string;
     reproductionCommand: string;
+    corpusFixture?: CorpusFixtureReference;
     claim: string;
   };
   boundedClaim: string;
@@ -60,6 +76,9 @@ export function buildProductReportEvidence(
 ): ProductReportEvidence {
   const searchWitness = input.search.firstFailure?.unsafe.analysis.verdict.witness;
   const exhaustiveWitness = input.exhaustive.unsafe.firstViolation?.witness;
+  const searchScenario =
+    input.search.firstFailure?.unsafe.minimized?.scenario ?? input.search.firstFailure?.scenario;
+  const exhaustiveScenario = input.exhaustive.unsafe.firstViolation?.scenario;
   return {
     ok: input.corpus.ok,
     protocols: {
@@ -88,6 +107,7 @@ export function buildProductReportEvidence(
       witnessSummary: summarizeWitness(searchWitness),
       witnessDetail: detailWitness(searchWitness),
       reproductionCommand: input.reproduce[1] ?? "npm run search:compare",
+      corpusFixture: findCorpusFixture(input.corpus, searchScenario),
       claim: input.search.claim,
     },
     exhaustive: {
@@ -104,6 +124,7 @@ export function buildProductReportEvidence(
         input.exhaustive.unsafe.firstViolation?.reproductionCommand ??
         input.reproduce[2] ??
         "npm run exhaustive",
+      corpusFixture: findCorpusFixture(input.corpus, exhaustiveScenario),
       claim: input.exhaustive.claim,
     },
     boundedClaim: input.boundedClaim,
@@ -134,6 +155,7 @@ export function formatProductReportEvidence(evidence: ProductReportEvidence): st
     `- quorum unavailable operations: ${evidence.search.quorumUnavailableOperations}`,
     `- minimized steps: ${evidence.search.minimizedSteps ?? "n/a"}`,
     `- first failure witness: ${evidence.search.witnessSummary ?? "none"}`,
+    `- corpus fixture: ${formatFixtureReference(evidence.search.corpusFixture)}`,
     "",
     "Tiny exhaustive model:",
     `- terminal histories checked: ${evidence.exhaustive.terminalHistories}`,
@@ -144,6 +166,7 @@ export function formatProductReportEvidence(evidence: ProductReportEvidence): st
     `- quorum unavailable operations: ${evidence.exhaustive.quorumUnavailableOperations}`,
     `- first exhaustive violation: ${evidence.exhaustive.firstViolationCaseId ?? "none"}`,
     `- first exhaustive witness: ${evidence.exhaustive.witnessSummary ?? "none"}`,
+    `- corpus fixture: ${formatFixtureReference(evidence.exhaustive.corpusFixture)}`,
     "",
     "Bounded claim:",
     evidence.boundedClaim,
@@ -151,4 +174,44 @@ export function formatProductReportEvidence(evidence: ProductReportEvidence): st
     "Reproduce:",
     ...evidence.reproduce.map((command) => `- ${command}`),
   ].join("\n");
+}
+
+function findCorpusFixture(
+  corpus: CorpusRunResult,
+  scenario: Scenario | undefined,
+): CorpusFixtureReference | undefined {
+  if (!scenario) {
+    return undefined;
+  }
+  const targetKey = scenarioBehaviorKey(scenario);
+  const fixture = corpus.fixtures.find(
+    (candidate) =>
+      candidate.ok &&
+      candidate.scenarioHash.length > 0 &&
+      scenarioBehaviorKey(candidate.scenario) === targetKey,
+  );
+  return fixture ? toFixtureReference(fixture) : undefined;
+}
+
+function toFixtureReference(fixture: CorpusFixtureResult): CorpusFixtureReference {
+  return {
+    id: fixture.entry.id,
+    title: fixture.entry.title,
+    fixture: fixture.entry.fixture,
+    scenarioType: fixture.entry.scenarioType,
+    scenarioHash: fixture.scenarioHash,
+    tags: fixture.entry.tags,
+  };
+}
+
+function scenarioBehaviorKey(scenario: Scenario): string {
+  return JSON.stringify({
+    initialValue: scenario.initialValue,
+    nodes: scenario.nodes,
+    steps: scenario.steps,
+  });
+}
+
+function formatFixtureReference(fixture: CorpusFixtureReference | undefined): string {
+  return fixture ? `${fixture.id} (${fixture.fixture})` : "not saved in corpus";
 }

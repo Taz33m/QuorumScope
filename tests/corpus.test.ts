@@ -23,6 +23,7 @@ describe("manifest-driven regression corpus", () => {
       "split-brain-stale-read",
       "search-143-minimized",
       "concurrent-safe-overlap",
+      "exhaustive-ex-000023",
     ]);
     expect(validateManifestFileCoverage(manifest, join(process.cwd(), "examples"))).toEqual([]);
   });
@@ -68,11 +69,11 @@ describe("manifest-driven regression corpus", () => {
     const result = runCorpus();
 
     expect(result.ok).toBe(true);
-    expect(result.summary.fixtures).toBe(3);
-    expect(result.summary.expectedMatched).toBe(6);
-    expect(result.summary.unsafeViolations).toBe(2);
+    expect(result.summary.fixtures).toBe(4);
+    expect(result.summary.expectedMatched).toBe(8);
+    expect(result.summary.unsafeViolations).toBe(3);
     expect(result.summary.quorumViolations).toBe(0);
-    expect(result.summary.quorumUnavailableOperations).toBe(2);
+    expect(result.summary.quorumUnavailableOperations).toBe(4);
     expect(result.claim).toContain("not exhaustive proof");
   });
 
@@ -121,8 +122,9 @@ describe("manifest-driven regression corpus", () => {
 
     expect(output).toContain("QuorumScope regression corpus");
     expect(output).toContain("Manifest:");
-    expect(output).toContain("Expected outcomes matched: 6");
+    expect(output).toContain("Expected outcomes matched: 8");
     expect(output).toContain("concurrent-safe-overlap");
+    expect(output).toContain("exhaustive-ex-000023");
     expect(output).not.toContain(".;");
   });
 });

@@ -1,0 +1,40 @@
+{
+  "id": "ex-000023",
+  "name": "Exhaustive case 23",
+  "description": "First stale-read witness discovered by the default tiny bounded exhaustive explorer. This fixture preserves the enumerated case for corpus replay.",
+  "seed": 7023,
+  "initialValue": "v0",
+  "nodes": ["n1", "n2", "n3"],
+  "steps": [
+    {
+      "type": "partition",
+      "groups": [["n1"], ["n2", "n3"]],
+      "label": "exhaustive 1/2 partition"
+    },
+    {
+      "type": "concurrent",
+      "label": "exhaustive overlap 1",
+      "operations": [
+        {
+          "type": "write",
+          "client": "c1",
+          "zone": 0,
+          "value": "v1",
+          "label": "exhaustive overlapping write zone 0"
+        },
+        {
+          "type": "read",
+          "client": "c2",
+          "zone": 0,
+          "label": "exhaustive overlapping read zone 0"
+        }
+      ]
+    },
+    {
+      "type": "read",
+      "client": "c1",
+      "zone": 1,
+      "label": "exhaustive read 3 zone 1"
+    }
+  ]
+}

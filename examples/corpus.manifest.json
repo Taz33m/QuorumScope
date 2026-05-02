@@ -63,6 +63,27 @@
       },
       "notes": "A same-start overlapping read/write history that remains linearizable under both included protocols.",
       "tags": ["concurrent", "safe", "witness", "single-key"]
+    },
+    {
+      "id": "exhaustive-ex-000023",
+      "title": "Default exhaustive first stale-read witness",
+      "fixture": "exhaustive-ex-000023.json",
+      "scenarioType": "exhaustive-counterexample",
+      "protocols": ["unsafe", "quorum"],
+      "expected": {
+        "unsafe": {
+          "verdict": "violation",
+          "violationKind": "stale-read",
+          "unavailableOperations": 0
+        },
+        "quorum": {
+          "verdict": "linearizable",
+          "unavailableOperations": 2,
+          "finalValue": "v0"
+        }
+      },
+      "notes": "Saved first violation from the default tiny bounded exhaustive model.",
+      "tags": ["exhaustive", "concurrent", "stale-read", "partition", "counterexample"]
     }
   ]
 }

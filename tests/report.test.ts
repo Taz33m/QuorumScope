@@ -8,7 +8,9 @@ describe("product report", () => {
     const report = buildProductReport();
 
     expect(report.corpus.ok).toBe(true);
-    expect(report.corpus.summary.fixtures).toBe(3);
+    expect(report.corpus.summary.fixtures).toBe(4);
+    expect(report.corpus.summary.unsafeViolations).toBe(3);
+    expect(report.corpus.summary.quorumUnavailableOperations).toBe(4);
     expect(report.search.summary.unsafeViolations).toBe(50);
     expect(report.search.summary.quorumViolations).toBe(0);
     expect(report.exhaustive.coverage.terminalHistories).toBe(804);
@@ -19,6 +21,8 @@ describe("product report", () => {
     expect(report.reproduce.some((command) => command.includes("npm run exhaustive"))).toBe(true);
     expect(report.evidence.search.witnessSummary).toContain("read returned");
     expect(report.evidence.exhaustive.witnessSummary).toContain("read returned");
+    expect(report.evidence.search.corpusFixture?.id).toBe("search-143-minimized");
+    expect(report.evidence.exhaustive.corpusFixture?.id).toBe("exhaustive-ex-000023");
     expect(report.evidence.boundedClaim).toBe(report.boundedClaim);
     expect(report.evidence.reproduce).toEqual(report.reproduce);
   }, 15_000);
