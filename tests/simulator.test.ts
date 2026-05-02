@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { analyzeScenario, simulateScenario, splitBrainStaleReadScenario } from "../src/core";
-import type { Scenario } from "../src/core";
+import type { OperationRecord, Scenario, SimulationResult } from "../src/core";
 
 describe("distributed register simulator", () => {
   it("makes the unsafe protocol return a stale successful read under partition", () => {
@@ -64,6 +64,22 @@ describe("distributed register simulator", () => {
     expect(result.finalNodes.every((node) => node.prepared === undefined)).toBe(true);
   });
 
+  it("marks concurrent quorum writes successful only after an actual committed quorum", () => {
+    const result = simulateScenario(concurrentQuorumWrites(0), "quorum");
+
+    expect(result.operations.map((operation) => operation.status)).toEqual(["ok", "unavailable"]);
+    expect(result.operations[0]?.note).toBe("write committed on quorum n2, n3, n5");
+    expect(result.operations[1]?.note).toBe("write unavailable: committed 0/3 replicas");
+    assertQuorumWriteCommitInvariant(result);
+    expect(result.finalNodes.every((node) => node.prepared === undefined)).toBe(true);
+  });
+
+  it("preserves the quorum write commit invariant across deterministic concurrent timings", () => {
+    for (let seed = 0; seed <= 100; seed += 1) {
+      assertQuorumWriteCommitInvariant(simulateScenario(concurrentQuorumWrites(seed), "quorum"));
+    }
+  });
+
   it("executes concurrent scenario steps as overlapping operation intervals", () => {
     const scenario: Scenario = {
       id: "concurrent-overlap",
@@ -95,3 +111,49 @@ describe("distributed register simulator", () => {
     expect(read?.start).toBeLessThan(write?.end ?? 0);
   });
 });
+
+function concurrentQuorumWrites(seed: number): Scenario {
+  return {
+    id: `concurrent-quorum-writes-${seed}`,
+    name: "Concurrent quorum writes",
+    description: "Two writers race on the same reachable quorum.",
+    seed,
+    initialValue: "v0",
+    nodes: ["n1", "n2", "n3", "n4", "n5"],
+    steps: [
+      {
+        type: "concurrent",
+        label: "write/write race",
+        operations: [
+          { type: "write", client: "c1", zone: 0, value: "v1" },
+          { type: "write", client: "c2", zone: 0, value: "v2" },
+        ],
+      },
+    ],
+  };
+}
+
+function assertQuorumWriteCommitInvariant(result: SimulationResult): void {
+  for (const operation of result.operations.filter(isWrite)) {
+    const commits = result.events.filter(
+      (event) => event.type === "commit" && event.opId === operation.id,
+    );
+    expect(commits.length).toBeGreaterThanOrEqual(
+      operation.status === "ok" ? operation.quorumRequired : 0,
+    );
+    if (operation.status === "ok") {
+      expect(commits.length).toBeGreaterThanOrEqual(operation.quorumRequired);
+      expect(commits.every((event) => event.time <= operation.end)).toBe(true);
+      expect(operation.acknowledgements).toEqual(
+        commits.slice(0, operation.quorumRequired).map((event) => event.target),
+      );
+    } else {
+      expect(commits.length).toBeLessThan(operation.quorumRequired);
+      expect(operation.output).toBeUndefined();
+    }
+  }
+}
+
+function isWrite(operation: OperationRecord): boolean {
+  return operation.kind === "write";
+}

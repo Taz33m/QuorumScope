@@ -18,8 +18,8 @@ describe("product report", () => {
     });
     expect(report.search.summary.unsafeViolations).toBe(50);
     expect(report.search.summary.quorumViolations).toBe(0);
-    expect(report.exhaustive.coverage.terminalHistories).toBe(804);
-    expect(report.exhaustive.unsafe.violations).toBe(134);
+    expect(report.exhaustive.coverage.terminalHistories).toBe(1000);
+    expect(report.exhaustive.unsafe.violations).toBe(144);
     expect(report.exhaustive.quorum.violations).toBe(0);
     expect(report.boundedClaim).toContain("not a general proof");
     expect(report.reproduce.some((command) => command.includes("npm run search"))).toBe(true);
@@ -32,10 +32,10 @@ describe("product report", () => {
       scenarioHash: "97bd97918ce8",
       status: "verified",
     });
-    expect(report.evidence.exhaustive.corpusFixture?.id).toBe("exhaustive-ex-000023");
+    expect(report.evidence.exhaustive.corpusFixture?.id).toBe("exhaustive-ex-000043");
     expect(report.evidence.exhaustive.corpusFixture?.provenance).toMatchObject({
       source: "bounded-exhaustive",
-      scenarioHash: "13235af00ed4",
+      scenarioHash: "bde7f1573ff1",
       status: "verified",
     });
     expect(report.evidence.boundedClaim).toBe(report.boundedClaim);

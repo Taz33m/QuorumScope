@@ -24,7 +24,7 @@ describe("manifest-driven regression corpus", () => {
       "split-brain-stale-read",
       "search-143-minimized",
       "concurrent-safe-overlap",
-      "exhaustive-ex-000023",
+      "exhaustive-ex-000043",
     ]);
     expect(validateManifestFileCoverage(manifest, join(process.cwd(), "examples"))).toEqual([]);
   });
@@ -84,7 +84,7 @@ describe("manifest-driven regression corpus", () => {
       (fixture) => fixture.entry.id === "search-143-minimized",
     )!;
     const exhaustiveFixture = result.fixtures.find(
-      (fixture) => fixture.entry.id === "exhaustive-ex-000023",
+      (fixture) => fixture.entry.id === "exhaustive-ex-000043",
     )!;
 
     expect(searchFixture.scenarioHash).toBe(searchFixture.entry.provenance?.scenarioHash);
@@ -220,7 +220,7 @@ describe("manifest-driven regression corpus", () => {
     expect(output).toContain("Manifest:");
     expect(output).toContain("Expected outcomes matched: 8");
     expect(output).toContain("concurrent-safe-overlap");
-    expect(output).toContain("exhaustive-ex-000023");
+    expect(output).toContain("exhaustive-ex-000043");
     expect(output).not.toContain(".;");
   });
 });

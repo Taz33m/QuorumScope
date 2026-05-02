@@ -59,8 +59,8 @@ describe("machine-readable CLI contracts", () => {
     expect(json.search.firstFailure.seed).toBe(143);
     expect(json.search.firstFailure.minimizedSteps).toBe(3);
     expect(json.exhaustive.config.maxOperations).toBe(3);
-    expect(json.exhaustive.coverage.terminalHistories).toBe(804);
-    expect(json.exhaustive.unsafe.firstViolation.caseId).toBe("ex-000023");
+    expect(json.exhaustive.coverage.terminalHistories).toBe(1000);
+    expect(json.exhaustive.unsafe.firstViolation.caseId).toBe("ex-000043");
     expect(json.exhaustive.quorum.violations).toBe(0);
     expect(json.evidence.corpus.provenance).toEqual({
       verified: 2,
@@ -83,11 +83,11 @@ describe("machine-readable CLI contracts", () => {
       },
     });
     expect(json.evidence.exhaustive.corpusFixture).toMatchObject({
-      id: "exhaustive-ex-000023",
-      fixture: "exhaustive-ex-000023.json",
+      id: "exhaustive-ex-000043",
+      fixture: "exhaustive-ex-000043.json",
       provenance: {
         status: "verified",
-        scenarioHash: "13235af00ed4",
+        scenarioHash: "bde7f1573ff1",
       },
     });
     expect(json.evidence.reproduce).toEqual(json.reproduce);
@@ -135,7 +135,7 @@ describe("machine-readable CLI contracts", () => {
       protocol: "unsafe",
     });
     expect(json.search.summary.unsafeViolations).toBe(50);
-    expect(json.exhaustive.coverage.terminalHistories).toBe(804);
+    expect(json.exhaustive.coverage.terminalHistories).toBe(1000);
   }, 15_000);
 });
 

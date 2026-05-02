@@ -6,6 +6,7 @@ import {
   runBoundedExhaustive,
   simulateScenario,
 } from "../src/core";
+import type { OperationRecord, SimulationResult } from "../src/core";
 
 describe("bounded exhaustive explorer", () => {
   it("enumerates the default finite model deterministically", () => {
@@ -15,8 +16,8 @@ describe("bounded exhaustive explorer", () => {
     expect(second.coverage).toEqual(first.coverage);
     expect(second.unsafe.violations).toBe(first.unsafe.violations);
     expect(second.quorum.violations).toBe(first.quorum.violations);
-    expect(first.coverage.terminalHistories).toBe(804);
-    expect(first.coverage.uniqueScenarios).toBe(804);
+    expect(first.coverage.terminalHistories).toBe(1000);
+    expect(first.coverage.uniqueScenarios).toBe(1000);
     expect(first.coverage.concurrentSchedules).toBeGreaterThan(0);
   });
 
@@ -43,6 +44,27 @@ describe("bounded exhaustive explorer", () => {
     expect(result.quorum.violations).toBe(0);
     expect(result.quorum.unavailableOperations).toBeGreaterThan(0);
     expect(result.claim).toContain("not a proof for arbitrary systems");
+  });
+
+  it("enumerates write/write overlaps and preserves quorum commit invariants", () => {
+    const result = runBoundedExhaustive();
+    const overlap = result.cases.find((candidate) =>
+      candidate.scenario.steps.some(
+        (step) =>
+          step.type === "concurrent" &&
+          step.operations.length > 1 &&
+          step.operations.every((operation) => operation.type === "write"),
+      ),
+    );
+
+    expect(overlap).toBeDefined();
+    assertQuorumWriteCommitInvariant(simulateScenario(overlap!.scenario, "quorum"));
+  });
+
+  it("preserves quorum write commit invariants across every default exhaustive case", () => {
+    for (const candidate of runBoundedExhaustive().cases) {
+      assertQuorumWriteCommitInvariant(simulateScenario(candidate.scenario, "quorum"));
+    }
   });
 
   it("keeps coverage buckets aligned with terminal histories", () => {
@@ -98,8 +120,29 @@ describe("bounded exhaustive explorer", () => {
     });
 
     expect(output).toContain("QuorumScope bounded exhaustive explorer");
-    expect(output).toContain("terminal histories checked: 804");
+    expect(output).toContain("terminal histories checked: 1000");
     expect(output).toContain("Bounded claim:");
     expect(output).toContain("not a proof for arbitrary systems");
   });
 });
+
+function assertQuorumWriteCommitInvariant(result: SimulationResult): void {
+  for (const operation of result.operations.filter(isWrite)) {
+    const commits = result.events.filter(
+      (event) => event.type === "commit" && event.opId === operation.id,
+    );
+    if (operation.status === "ok") {
+      expect(commits.length).toBeGreaterThanOrEqual(operation.quorumRequired);
+      expect(operation.acknowledgements).toEqual(
+        commits.slice(0, operation.quorumRequired).map((event) => event.target),
+      );
+    } else {
+      expect(commits.length).toBeLessThan(operation.quorumRequired);
+      expect(operation.output).toBeUndefined();
+    }
+  }
+}
+
+function isWrite(operation: OperationRecord): boolean {
+  return operation.kind === "write";
+}

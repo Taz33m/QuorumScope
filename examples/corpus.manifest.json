@@ -70,9 +70,9 @@
       "tags": ["concurrent", "safe", "witness", "single-key"]
     },
     {
-      "id": "exhaustive-ex-000023",
+      "id": "exhaustive-ex-000043",
       "title": "Default exhaustive first stale-read witness",
-      "fixture": "exhaustive-ex-000023.json",
+      "fixture": "exhaustive-ex-000043.json",
       "scenarioType": "exhaustive-counterexample",
       "protocols": ["unsafe", "quorum"],
       "expected": {
@@ -89,8 +89,8 @@
       },
       "provenance": {
         "source": "bounded-exhaustive",
-        "scenarioHash": "13235af00ed4",
-        "reproductionCommand": "npm run exhaustive -- --case ex-000023 --max-ops 3 --topology 2 --clients 2 --seed 7001 --show"
+        "scenarioHash": "bde7f1573ff1",
+        "reproductionCommand": "npm run exhaustive -- --case ex-000043 --max-ops 3 --topology 2 --clients 2 --seed 7001 --show"
       },
       "notes": "Saved first violation from the default tiny bounded exhaustive model.",
       "tags": ["exhaustive", "concurrent", "stale-read", "partition", "counterexample"]

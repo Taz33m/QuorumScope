@@ -380,6 +380,28 @@ function concurrentTransitions(
         ],
       });
     }
+    for (const competingWriteZone of zones) {
+      transitions.push({
+        type: "concurrent",
+        label: `exhaustive write/write overlap ${operationIndex}`,
+        operations: [
+          {
+            type: "write",
+            client: clientFor(operationIndex, config),
+            zone: writeZone,
+            value: `v${state.writes + 1}`,
+            label: `exhaustive overlapping write zone ${writeZone}`,
+          },
+          {
+            type: "write",
+            client: clientFor(operationIndex + 1, config),
+            zone: competingWriteZone,
+            value: `v${state.writes + 2}`,
+            label: `exhaustive competing write zone ${competingWriteZone}`,
+          },
+        ],
+      });
+    }
   }
   return transitions;
 }

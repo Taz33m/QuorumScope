@@ -1,8 +1,8 @@
 {
-  "id": "ex-000023",
-  "name": "Exhaustive case 23",
+  "id": "ex-000043",
+  "name": "Exhaustive case 43",
   "description": "First stale-read witness discovered by the default tiny bounded exhaustive explorer. This fixture preserves the enumerated case for corpus replay.",
-  "seed": 7023,
+  "seed": 7043,
   "initialValue": "v0",
   "nodes": ["n1", "n2", "n3"],
   "steps": [

@@ -128,7 +128,7 @@ describe("human product report", () => {
       `- first exhaustive witness: ${contract.evidence.exhaustive.witnessSummary}`,
     );
     expect(output).toContain(
-      `- corpus fixture: exhaustive-ex-000023 (exhaustive-ex-000023.json, hash 13235af00ed4, provenance verified)`,
+      `- corpus fixture: exhaustive-ex-000043 (exhaustive-ex-000043.json, hash bde7f1573ff1, provenance verified)`,
     );
 
     expect(output).toContain(contract.boundedClaim);

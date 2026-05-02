@@ -18,11 +18,11 @@ describe("exhaustive fixture export", () => {
     const result = runBoundedExhaustive();
     const exported = buildExhaustiveFixtureExport(result)!;
     const saved = JSON.parse(
-      readFileSync(join(process.cwd(), "examples", "exhaustive-ex-000023.json"), "utf-8"),
+      readFileSync(join(process.cwd(), "examples", "exhaustive-ex-000043.json"), "utf-8"),
     );
 
     expect(exported.source).toMatchObject({
-      caseId: "ex-000023",
+      caseId: "ex-000043",
       maxOperations: 3,
       maxTopologyChanges: 2,
       clientCount: 2,
@@ -30,7 +30,7 @@ describe("exhaustive fixture export", () => {
       includeConcurrent: true,
     });
     expect(exported.source.reproductionCommand).toBe(
-      "npm run exhaustive -- --case ex-000023 --max-ops 3 --topology 2 --clients 2 --seed 7001 --show",
+      "npm run exhaustive -- --case ex-000043 --max-ops 3 --topology 2 --clients 2 --seed 7001 --show",
     );
     expect(exported.scenario).toEqual(saved);
     expect(exported.promotionCheck).toMatchObject({
@@ -39,12 +39,12 @@ describe("exhaustive fixture export", () => {
       issues: [],
     });
     expect(exported.manifestEntry).toMatchObject({
-      id: "exhaustive-ex-000023",
-      fixture: "exhaustive-ex-000023.json",
+      id: "exhaustive-ex-000043",
+      fixture: "exhaustive-ex-000043.json",
       scenarioType: "exhaustive-counterexample",
       provenance: {
         source: "bounded-exhaustive",
-        scenarioHash: "13235af00ed4",
+        scenarioHash: "bde7f1573ff1",
       },
       expected: {
         unsafe: {
@@ -99,7 +99,7 @@ describe("exhaustive fixture export", () => {
         "tsx",
         "src/cli/exhaustive.ts",
         "--case",
-        "ex-000023",
+        "ex-000043",
         "--export-fixture",
       ],
       { cwd: process.cwd(), encoding: "utf-8" },
@@ -107,7 +107,7 @@ describe("exhaustive fixture export", () => {
     const exported = JSON.parse(output) as ExhaustiveFixtureExport & { ok: boolean };
 
     expect(exported.ok).toBe(true);
-    expect(exported.manifestEntry.fixture).toBe("exhaustive-ex-000023.json");
+    expect(exported.manifestEntry.fixture).toBe("exhaustive-ex-000043.json");
     expect(exported.promotionCheck.ok).toBe(true);
 
     const unsafe = simulateScenario(exported.scenario, "unsafe");

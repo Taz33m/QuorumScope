@@ -67,15 +67,15 @@ The exhaustive command enumerates every scenario inside a deliberately tiny fini
 - healed topology plus canonical 1/2 partitions
 - up to 3 returned operations
 - up to 2 topology changes
-- optional one overlapping read/write batch
+- optional one overlapping read/read, read/write, or write/write batch
 - deterministic simulator timing per enumerated case
 
 Current local output for the default model:
 
 | Protocol | Terminal histories | Violations | Stale-read witnesses | Unavailable ops |
 | --- | ---: | ---: | ---: | ---: |
-| First-ack | 804 | 134 | 122 | 0 |
-| Quorum | 804 | 0 | 0 | 756 |
+| First-ack | 1000 | 144 | 126 | 0 |
+| Quorum | 1000 | 0 | 0 | 1064 |
 
 This is exhaustive only over the declared scenario grammar and bounds. It does not enumerate arbitrary message timings, arbitrary client schedules, real network behavior, or larger systems.
 
@@ -141,7 +141,7 @@ npm run search:first-ack
 npm run search:compare
 npm run search -- --seed 143 --seeds 1 --protocol compare --nodes 5 --ops 8 --clients 3 --read-ratio 0.55 --chaos 0.75 --concurrency 0.45 --shrink
 npm run exhaustive
-npm run exhaustive -- --case ex-000023 --max-ops 3 --topology 2 --clients 2 --seed 7001 --show
+npm run exhaustive -- --case ex-000043 --max-ops 3 --topology 2 --clients 2 --seed 7001 --show
 ```
 
 Search output includes:
@@ -188,6 +188,7 @@ Current corpus fixtures:
 | `split-brain-stale-read.json` | curated first-ack stale-read counterexample |
 | `search-143-minimized.json` | minimized counterexample saved from adversarial search |
 | `concurrent-safe-overlap.json` | overlapping read/write history that remains linearizable |
+| `exhaustive-ex-000043.json` | first stale-read witness from the default tiny exhaustive model |
 
 The expected bounded result is first-ack stale-read violations in the counterexample fixtures, zero quorum violations, and quorum unavailability reported where it prevents stale reads.
 
@@ -211,9 +212,9 @@ Current local report summary:
 
 | Surface | First-ack violations | Quorum violations | Quorum unavailable ops |
 | --- | ---: | ---: | ---: |
-| Corpus | 2/3 fixtures | 0/3 fixtures | 2 |
+| Corpus | 3/4 fixtures | 0/4 fixtures | 4 |
 | Adversarial search | 50/50 schedules | 0/50 schedules | 155 |
-| Tiny exhaustive model | 134/804 histories | 0/804 histories | 756 |
+| Tiny exhaustive model | 144/1000 histories | 0/1000 histories | 1064 |
 
 Bounded claim: no quorum linearizability violations were found in the declared corpus, default adversarial generated corpus, and tiny exhaustive model under current assumptions. This is not a general proof.
 
@@ -230,6 +231,7 @@ Bounded claim: no quorum linearizability violations were found in the declared c
 - Single-key register only.
 - Five-node fixture layout in the UI.
 - No full Raft, Paxos, leader election, retries, anti-entropy, read repair, durable storage, message loss, or real networking.
+- The quorum protocol is a simplified prepare/commit register, not a production consensus protocol.
 - Scenarios can include overlapping operation batches, but QuorumScope does not exhaustively enumerate all possible concurrent schedules.
 - Search scenarios are bounded and adversarially biased; this is not exhaustive model checking.
 - The exhaustive explorer is exhaustive only inside the tiny declared scenario model; it does not enumerate arbitrary message timings or all possible distributed executions.
