@@ -22,28 +22,30 @@ if (json) {
       2,
     ),
   );
-  process.exit(result.ok ? 0 : 1);
-}
+  if (!result.ok) {
+    process.exitCode = 1;
+  }
+} else {
+  console.log("QuorumScope regression corpus");
+  console.log(`Manifest: ${result.manifestPath ?? "provided manifest"}`);
+  console.log(`Fixtures: ${result.summary.fixtures}`);
 
-console.log("QuorumScope regression corpus");
-console.log(`Manifest: ${result.manifestPath ?? "provided manifest"}`);
-console.log(`Fixtures: ${result.summary.fixtures}`);
+  for (const fixture of result.fixtures) {
+    printFixture(fixture);
+  }
 
-for (const fixture of result.fixtures) {
-  printFixture(fixture);
-}
+  console.log("");
+  console.log("Summary:");
+  console.log(`Expected outcomes matched: ${result.summary.expectedMatched}`);
+  console.log(`First-ack violations: ${result.summary.unsafeViolations}/${result.summary.fixtures}`);
+  console.log(`Quorum violations: ${result.summary.quorumViolations}/${result.summary.fixtures}`);
+  console.log(`Quorum unavailable operations: ${result.summary.quorumUnavailableOperations}`);
+  console.log(`Mismatches: ${result.summary.mismatches}`);
+  console.log(`Claim: ${result.claim}`);
 
-console.log("");
-console.log("Summary:");
-console.log(`Expected outcomes matched: ${result.summary.expectedMatched}`);
-console.log(`First-ack violations: ${result.summary.unsafeViolations}/${result.summary.fixtures}`);
-console.log(`Quorum violations: ${result.summary.quorumViolations}/${result.summary.fixtures}`);
-console.log(`Quorum unavailable operations: ${result.summary.quorumUnavailableOperations}`);
-console.log(`Mismatches: ${result.summary.mismatches}`);
-console.log(`Claim: ${result.claim}`);
-
-if (!result.ok) {
-  process.exitCode = 1;
+  if (!result.ok) {
+    process.exitCode = 1;
+  }
 }
 
 function printFixture(fixture: CorpusFixtureResult): void {

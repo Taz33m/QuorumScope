@@ -2,9 +2,9 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 import { runCorpus } from "../src/core/corpus";
-import { summarizeWitness } from "../src/core/explanations";
 import { buildCorpusJsonContract, buildProductReportJsonContract } from "../src/core/jsonContracts";
 import { buildProductReport } from "../src/core/report";
+import { formatProductReportEvidence } from "../src/core/reportEvidence";
 
 describe("human corpus output", () => {
   it("keeps the text summary aligned with the JSON contract", () => {
@@ -58,6 +58,8 @@ describe("human product report", () => {
       },
     );
 
+    expect(output.trimEnd()).toBe(formatProductReportEvidence(report.evidence));
+    expect(contract.evidence).toEqual(report.evidence);
     expect(output).toContain(`- fixtures: ${contract.corpus.summary.fixtures}`);
     expect(output).toContain(
       `- expected outcomes matched: ${contract.corpus.summary.expectedMatched}`,
@@ -88,9 +90,7 @@ describe("human product report", () => {
     expect(output).toContain(
       `- minimized steps: ${contract.search.firstFailure?.minimizedSteps ?? "n/a"}`,
     );
-    expect(output).toContain(
-      `- first failure witness: ${summarizeWitness(contract.search.firstFailure?.witness) ?? "none"}`,
-    );
+    expect(output).toContain(`- first failure witness: ${contract.evidence.search.witnessSummary}`);
 
     expect(output).toContain(
       `- terminal histories checked: ${contract.exhaustive.coverage.terminalHistories}`,
@@ -114,9 +114,7 @@ describe("human product report", () => {
       `- first exhaustive violation: ${contract.exhaustive.unsafe.firstViolation?.caseId ?? "none"}`,
     );
     expect(output).toContain(
-      `- first exhaustive witness: ${
-        summarizeWitness(report.exhaustive.unsafe.firstViolation?.witness) ?? "none"
-      }`,
+      `- first exhaustive witness: ${contract.evidence.exhaustive.witnessSummary}`,
     );
 
     expect(output).toContain(contract.boundedClaim);

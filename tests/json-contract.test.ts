@@ -55,6 +55,16 @@ describe("machine-readable CLI contracts", () => {
     expect(json.exhaustive.coverage.terminalHistories).toBe(804);
     expect(json.exhaustive.unsafe.firstViolation.caseId).toBe("ex-000023");
     expect(json.exhaustive.quorum.violations).toBe(0);
+    expect(json.evidence.search.witnessSummary).toBe(
+      "op3 read returned v0 after op2 write completed with v143-0.",
+    );
+    expect(json.evidence.search.witnessDetail).toContain("any legal linearization");
+    expect(json.evidence.exhaustive.witnessSummary).toBe(
+      "op3 read returned v0 after op1 write completed with v1.",
+    );
+    expect(json.evidence.reproduce).toEqual(json.reproduce);
+    expect(json.evidence.search.reproductionCommand).toBe(json.reproduce[1]);
+    expect(json.evidence.exhaustive.reproductionCommand).toBe(json.reproduce[2]);
     expect(json.boundedClaim).toContain("not a general proof");
     expect(json.reproduce.some((command: string) => command.includes("npm run exhaustive"))).toBe(true);
   }, 15_000);
@@ -90,6 +100,12 @@ describe("machine-readable CLI contracts", () => {
       fixtureId: "bad-split-brain",
       protocol: "unsafe",
     });
+    expect(json.evidence.ok).toBe(false);
+    expect(json.evidence.corpus.issues[0]).toMatchObject({
+      code: "expectation.verdict",
+      fixtureId: "bad-split-brain",
+      protocol: "unsafe",
+    });
     expect(json.search.summary.unsafeViolations).toBe(50);
     expect(json.exhaustive.coverage.terminalHistories).toBe(804);
   }, 15_000);
@@ -99,6 +115,7 @@ function runJson(script: string): Record<string, any> {
   const output = execFileSync("node", ["--import", "tsx", script, "--json"], {
     cwd: process.cwd(),
     encoding: "utf-8",
+    maxBuffer: 1024 * 1024,
   });
   return JSON.parse(output) as Record<string, any>;
 }
@@ -107,6 +124,7 @@ function runJsonProcess(script: string, args: readonly string[]) {
   return spawnSync("node", ["--import", "tsx", script, ...args], {
     cwd: process.cwd(),
     encoding: "utf-8",
+    maxBuffer: 1024 * 1024,
   });
 }
 

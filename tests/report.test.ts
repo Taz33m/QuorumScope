@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { buildProductReport } from "../src/core/report";
+import { formatProductReportEvidence } from "../src/core/reportEvidence";
 
 describe("product report", () => {
   it("aggregates corpus, adversarial search, and tiny exhaustive evidence", () => {
@@ -16,6 +17,10 @@ describe("product report", () => {
     expect(report.boundedClaim).toContain("not a general proof");
     expect(report.reproduce.some((command) => command.includes("npm run search"))).toBe(true);
     expect(report.reproduce.some((command) => command.includes("npm run exhaustive"))).toBe(true);
+    expect(report.evidence.search.witnessSummary).toContain("read returned");
+    expect(report.evidence.exhaustive.witnessSummary).toContain("read returned");
+    expect(report.evidence.boundedClaim).toBe(report.boundedClaim);
+    expect(report.evidence.reproduce).toEqual(report.reproduce);
   }, 15_000);
 
   it("CLI smoke prints a unified product report", () => {
@@ -25,6 +30,7 @@ describe("product report", () => {
     });
 
     expect(output).toContain("QuorumScope product report");
+    expect(output.trimEnd()).toBe(formatProductReportEvidence(buildProductReport().evidence));
     expect(output).toContain("Corpus:");
     expect(output).toContain("Adversarial search:");
     expect(output).toContain("Tiny exhaustive model:");

@@ -1,5 +1,6 @@
 import { runCorpus, type CorpusRunResult, type RunCorpusOptions } from "./corpus";
 import { runBoundedExhaustive, type ExhaustiveResult } from "./exhaustive";
+import { buildProductReportEvidence, type ProductReportEvidence } from "./reportEvidence";
 import { reproductionCommand, runAdversarialSearch } from "./search";
 import type { AdversarialSearchResult } from "./types";
 
@@ -9,6 +10,7 @@ export interface ProductReport {
   exhaustive: ExhaustiveResult;
   boundedClaim: string;
   reproduce: string[];
+  evidence: ProductReportEvidence;
 }
 
 export interface ProductReportOptions {
@@ -19,12 +21,22 @@ export function buildProductReport(options: ProductReportOptions = {}): ProductR
   const corpus = runCorpus(options.corpus);
   const search = runAdversarialSearch();
   const exhaustive = runBoundedExhaustive();
+  const boundedClaim = buildBoundedClaim(corpus, search, exhaustive);
+  const reproduce = buildReproductionCommands(search, exhaustive);
+  const evidence = buildProductReportEvidence({
+    corpus,
+    search,
+    exhaustive,
+    boundedClaim,
+    reproduce,
+  });
   return {
     corpus,
     search,
     exhaustive,
-    boundedClaim: buildBoundedClaim(corpus, search, exhaustive),
-    reproduce: buildReproductionCommands(search, exhaustive),
+    boundedClaim,
+    reproduce,
+    evidence,
   };
 }
 

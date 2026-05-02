@@ -5,6 +5,7 @@ import type {
   ExhaustiveSearchComparison,
 } from "./exhaustive";
 import type { ProductReport } from "./report";
+import type { ProductReportEvidence } from "./reportEvidence";
 import type { LinearizabilityWitness, SearchConfig, SearchSummary } from "./types";
 
 export const jsonContractSchemaVersion = 1;
@@ -79,6 +80,7 @@ export interface ProductReportJsonContract {
   };
   boundedClaim: string;
   reproduce: string[];
+  evidence: ProductReportEvidence;
 }
 
 export interface ProtocolSummaryJson {
@@ -183,5 +185,6 @@ export function buildProductReportJsonContract(report: ProductReport): ProductRe
     },
     boundedClaim: report.boundedClaim,
     reproduce: report.reproduce,
+    evidence: report.evidence,
   };
 }
