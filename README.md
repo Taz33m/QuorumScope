@@ -96,13 +96,14 @@ Open `http://127.0.0.1:5173/`.
 npm test
 npm run verify:product
 npm run report
+npm run smoke:ui
 npm run typecheck
 npm run build
 npm run corpus
 npm run exhaustive
 ```
 
-`npm run verify:product` runs the main trust checks locally: unit tests, typecheck, production build, demo, corpus, search comparison, exhaustive explorer, and report.
+`npm run verify:product` runs the main trust checks locally: unit tests, typecheck, production build, UI smoke, demo, corpus, search comparison, exhaustive explorer, and report. `npm run smoke:ui` verifies the built workbench shell and core technical surfaces; it is not a replacement for interactive browser QA.
 
 ## CLI Demo
 

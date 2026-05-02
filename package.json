@@ -16,6 +16,7 @@
     "search:first-ack": "node --import tsx src/cli/search.ts --protocol unsafe",
     "search:compare": "node --import tsx src/cli/search.ts --protocol compare",
     "report": "node --import tsx src/cli/report.ts",
+    "smoke:ui": "node --import tsx src/cli/smokeUi.ts",
     "verify:product": "node --import tsx src/cli/verifyProduct.ts"
   },
   "dependencies": {

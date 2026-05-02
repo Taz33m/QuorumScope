@@ -6,6 +6,7 @@ const commands = [
   { script: "src/cli/bench.ts", expected: "Usage: npm run bench" },
   { script: "src/cli/corpus.ts", expected: "Usage: npm run corpus" },
   { script: "src/cli/report.ts", expected: "Usage: npm run report" },
+  { script: "src/cli/smokeUi.ts", expected: "Usage: npm run smoke:ui" },
   { script: "src/cli/verifyProduct.ts", expected: "Usage: npm run verify:product" },
   { script: "src/cli/search.ts", expected: "Usage: npm run search" },
   { script: "src/cli/exhaustive.ts", expected: "Usage: npm run exhaustive" },

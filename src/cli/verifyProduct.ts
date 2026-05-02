@@ -9,6 +9,7 @@ const checks = [
   ["test"],
   ["run", "typecheck"],
   ["run", "build"],
+  ["run", "smoke:ui", "--", "--no-build"],
   ["run", "demo"],
   ["run", "corpus"],
   ["run", "search:compare"],
@@ -44,7 +45,7 @@ console.log("Product verification passed.");
 function printHelpAndExit(): never {
   console.log(`Usage: npm run verify:product -- [options]
 
-Runs the local product trust path: tests, typecheck, build, demo, corpus, search comparison, exhaustive explorer, and report.
+Runs the local product trust path: tests, typecheck, build, UI smoke, demo, corpus, search comparison, exhaustive explorer, and report.
 
 Options:
   --help     Show this help
