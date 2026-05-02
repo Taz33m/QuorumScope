@@ -1,6 +1,11 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { splitBrainStaleReadScenario } from "../src/core";
+import type { CorpusManifest } from "../src/core/corpus";
 import { runCorpus } from "../src/core/corpus";
 import { buildCorpusJsonContract, buildProductReportJsonContract } from "../src/core/jsonContracts";
 import { buildProductReport } from "../src/core/report";
@@ -131,4 +136,65 @@ describe("human product report", () => {
       expect(output).toContain(`- ${command}`);
     }
   }, 15_000);
+
+  it("prints actionable corpus issues when report verification fails", () => {
+    const manifestPath = writeProvenanceMismatchManifest();
+    const result = spawnSync(
+      "node",
+      ["--import", "tsx", "src/cli/report.ts", "--manifest", manifestPath],
+      {
+        cwd: process.cwd(),
+        encoding: "utf-8",
+        maxBuffer: 1024 * 1024,
+      },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("Corpus:");
+    expect(result.stdout).toContain("- provenance hashes: 0 verified, 0 not declared, 1 mismatched");
+    expect(result.stdout).toContain("- corpus issues:");
+    expect(result.stdout).toContain(
+      "bad-provenance [fixture.provenance-hash]: expected fixture hash 000000000000 from provenance, got 6e256cf9b5a0",
+    );
+    expect(result.stdout).toContain("(expected 000000000000, actual 6e256cf9b5a0)");
+    expect(result.stdout).toContain("Bounded claim:");
+  }, 15_000);
 });
+
+function writeProvenanceMismatchManifest(): string {
+  const dir = mkdtempSync(join(tmpdir(), "quorumscope-report-human-"));
+  writeFileSync(join(dir, "bad-provenance.json"), JSON.stringify(splitBrainStaleReadScenario));
+  const manifest: CorpusManifest = {
+    version: 1,
+    fixtures: [
+      {
+        id: "bad-provenance",
+        title: "Bad provenance hash",
+        fixture: "bad-provenance.json",
+        scenarioType: "curated-counterexample",
+        protocols: ["unsafe", "quorum"],
+        expected: {
+          unsafe: {
+            verdict: "violation",
+            violationKind: "stale-read",
+            unavailableOperations: 0,
+          },
+          quorum: {
+            verdict: "linearizable",
+            unavailableOperations: 1,
+            finalValue: "v1",
+          },
+        },
+        provenance: {
+          source: "curated",
+          scenarioHash: "000000000000",
+        },
+        notes: "Deliberately wrong provenance hash for human report testing.",
+        tags: ["test", "provenance"],
+      },
+    ],
+  };
+  const manifestPath = join(dir, "corpus.manifest.json");
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+  return manifestPath;
+}

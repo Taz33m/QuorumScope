@@ -167,6 +167,7 @@ export function formatProductReportEvidence(evidence: ProductReportEvidence): st
     `- quorum violations: ${evidence.corpus.quorumViolations}`,
     `- quorum unavailable operations: ${evidence.corpus.quorumUnavailableOperations}`,
     `- provenance hashes: ${evidence.corpus.provenance.verified} verified, ${evidence.corpus.provenance.notDeclared} not declared, ${evidence.corpus.provenance.mismatched} mismatched`,
+    ...formatCorpusIssues(evidence.corpus.issues),
     "",
     "Adversarial search:",
     `- seeds explored: ${evidence.search.seedsExplored}`,
@@ -278,4 +279,23 @@ function formatFixtureReference(fixture: CorpusFixtureReference | undefined): st
     return "not saved in corpus";
   }
   return `${fixture.id} (${fixture.fixture}, hash ${fixture.scenarioHash}, provenance ${fixture.provenance?.status ?? "not-declared"})`;
+}
+
+function formatCorpusIssues(issues: readonly CorpusIssue[]): string[] {
+  if (issues.length === 0) {
+    return [];
+  }
+  return [
+    "- corpus issues:",
+    ...issues.map((issue) => `  - ${formatCorpusIssue(issue)}`),
+  ];
+}
+
+function formatCorpusIssue(issue: CorpusIssue): string {
+  const protocol = issue.protocol ? ` ${issue.protocol}` : "";
+  const expectedActual =
+    typeof issue.expected !== "undefined" || typeof issue.actual !== "undefined"
+      ? ` (expected ${issue.expected ?? "n/a"}, actual ${issue.actual ?? "n/a"})`
+      : "";
+  return `${issue.fixtureId}${protocol} [${issue.code}]: ${issue.message}${expectedActual}`;
 }
