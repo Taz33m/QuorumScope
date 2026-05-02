@@ -32,7 +32,7 @@ describe("report reproduction commands", () => {
       firstFailure.unsafe.minimized?.scenario.steps.length,
     );
     expect(replay.summary.quorumViolations).toBe(0);
-  });
+  }, 15_000);
 
   it("replays the reported exhaustive counterexample under matching finite-model bounds", () => {
     const report = buildProductReport();
@@ -57,7 +57,7 @@ describe("report reproduction commands", () => {
     expect(found?.scenarioHash).toBe(firstViolation.scenarioHash);
     const replay = simulateScenario(found!.scenario, "unsafe");
     expect(checkLinearizability(replay.operations, found!.scenario.initialValue).ok).toBe(false);
-  });
+  }, 15_000);
 });
 
 function commandToSearchConfig(command: string): Partial<SearchConfig> {

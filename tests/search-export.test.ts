@@ -86,4 +86,24 @@ describe("search fixture export", () => {
     expect(checkLinearizability(unsafe.operations, exported.scenario.initialValue).ok).toBe(false);
     expect(checkLinearizability(quorum.operations, exported.scenario.initialValue).ok).toBe(true);
   });
+
+  it("exports a minimized fixture even when the source search preserved originals", () => {
+    const result = runAdversarialSearch({
+      seed: 143,
+      seeds: 1,
+      protocol: "compare",
+      shrink: false,
+    });
+    const failure = result.firstFailure!;
+    const exported = buildSearchFixtureExport(result)!;
+
+    expect(failure.unsafe.minimized).toBeUndefined();
+    expect(exported.source.originalSteps).toBe(11);
+    expect(exported.source.minimizedSteps).toBe(3);
+    expect(exported.source.reproductionCommand.split(/\s+/)).toContain("--shrink");
+    expect(exported.scenario.steps).toHaveLength(3);
+
+    const unsafe = simulateScenario(exported.scenario, "unsafe");
+    expect(checkLinearizability(unsafe.operations, exported.scenario.initialValue).ok).toBe(false);
+  });
 });

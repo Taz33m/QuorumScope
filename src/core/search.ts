@@ -179,7 +179,7 @@ export function runAdversarialSearch(config: Partial<SearchConfig> = {}): Advers
 
   for (let attempt = 0; attempt < normalized.seeds; attempt += 1) {
     const generated = generateSearchScenario(normalized.seed + attempt, attempt, normalized);
-    const searchAttempt = evaluateGeneratedScenario(generated);
+    const searchAttempt = evaluateGeneratedScenarioWithOptions(generated, normalized);
     attempts.push(searchAttempt);
     const selectedEvaluation =
       normalized.protocol === "quorum" ? searchAttempt.quorum : searchAttempt.unsafe;
@@ -199,8 +199,15 @@ export function runAdversarialSearch(config: Partial<SearchConfig> = {}): Advers
 }
 
 export function evaluateGeneratedScenario(generated: GeneratedScenario): SearchAttempt {
-  const unsafe = evaluateProtocol(generated.scenario, "unsafe");
-  const quorum = evaluateProtocol(generated.scenario, "quorum");
+  return evaluateGeneratedScenarioWithOptions(generated, { shrink: defaultSearchConfig.shrink });
+}
+
+function evaluateGeneratedScenarioWithOptions(
+  generated: GeneratedScenario,
+  options: Pick<SearchConfig, "shrink">,
+): SearchAttempt {
+  const unsafe = evaluateProtocol(generated.scenario, "unsafe", options);
+  const quorum = evaluateProtocol(generated.scenario, "quorum", options);
   return {
     seed: generated.seed,
     attempt: generated.attempt,
@@ -217,11 +224,16 @@ export function reproductionCommand(
   config: SearchConfig = defaultSearchConfig,
 ): string {
   const protocolArg = protocol === "compare" ? "compare" : protocol;
-  return `npm run search -- --seed ${seed} --seeds 1 --protocol ${protocolArg} --nodes ${config.nodeCount} --ops ${config.operationCount} --clients ${config.clientCount} --read-ratio ${config.readRatio} --chaos ${config.partitionIntensity} --concurrency ${config.concurrentIntensity} --shrink`;
+  const shrinkArg = config.shrink ? "--shrink" : "--no-shrink";
+  return `npm run search -- --seed ${seed} --seeds 1 --protocol ${protocolArg} --nodes ${config.nodeCount} --ops ${config.operationCount} --clients ${config.clientCount} --read-ratio ${config.readRatio} --chaos ${config.partitionIntensity} --concurrency ${config.concurrentIntensity} ${shrinkArg}`;
 }
 
-function evaluateProtocol(scenario: Scenario, protocol: ProtocolName): ProtocolSearchEvaluation {
-  const analysis = analyzeScenario(scenario, protocol);
+function evaluateProtocol(
+  scenario: Scenario,
+  protocol: ProtocolName,
+  options: Pick<SearchConfig, "shrink">,
+): ProtocolSearchEvaluation {
+  const analysis = analyzeScenario(scenario, protocol, { shrink: options.shrink });
   return {
     protocol,
     analysis,

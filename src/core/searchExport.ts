@@ -36,7 +36,10 @@ export function buildSearchFixtureExport(
     return undefined;
   }
 
-  const minimized = failure.unsafe.minimized?.scenario ?? failure.scenario;
+  const minimized =
+    failure.unsafe.minimized?.scenario ??
+    analyzeScenario(failure.scenario, "unsafe", { shrink: true }).minimizedFailure?.scenario ??
+    failure.scenario;
   const unsafe = analyzeScenario(minimized, "unsafe");
   const quorum = analyzeScenario(minimized, "quorum");
   const fixtureId =
@@ -52,7 +55,10 @@ export function buildSearchFixtureExport(
   const source = {
     seed: failure.seed,
     attempt: failure.attempt,
-    reproductionCommand: reproductionCommand(failure.seed, "compare", result.config),
+    reproductionCommand: reproductionCommand(failure.seed, "compare", {
+      ...result.config,
+      shrink: true,
+    }),
     originalSteps: failure.scenario.steps.length,
     minimizedSteps: minimized.steps.length,
   };

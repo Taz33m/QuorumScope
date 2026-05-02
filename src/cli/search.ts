@@ -44,6 +44,7 @@ function printSearchReport(): void {
   console.log(
     `Config: seed=${result.config.seed} nodes=${result.config.nodeCount} ops=${result.config.operationCount} clients=${result.config.clientCount} partitionIntensity=${result.config.partitionIntensity} concurrentIntensity=${result.config.concurrentIntensity}`,
   );
+  console.log(`Shrink: ${result.config.shrink ? "enabled" : "disabled"}`);
   console.log(`Overlapping schedules: ${result.summary.concurrentSchedules}`);
 
   if (result.firstFailure) {
@@ -53,12 +54,14 @@ function printSearchReport(): void {
     console.log(`First violation: seed ${failure.seed}`);
     console.log(`Original steps: ${failure.scenario.steps.length}`);
     console.log(
-      `Minimized steps: ${selected.minimized?.scenario.steps.length ?? failure.scenario.steps.length}`,
+      selected.minimized
+        ? `Minimized steps: ${selected.minimized.scenario.steps.length}`
+        : `Minimized steps: ${result.config.shrink ? failure.scenario.steps.length : "not requested"}`,
     );
     if (witness) {
       console.log(`Violation: ${summarizeWitness(witness)}`);
     }
-    console.log(`Reproduce: ${reproductionCommand(failure.seed, protocol)}`);
+    console.log(`Reproduce: ${reproductionCommand(failure.seed, protocol, result.config)}`);
     console.log(
       `Checker verdict: ${selected.analysis.verdict.ok ? "LINEARIZABLE" : "NOT LINEARIZABLE"}`,
     );
@@ -115,6 +118,8 @@ function parseArgs(args: string[]): { config: Partial<SearchConfig>; exportFixtu
       index += 1;
     } else if (arg === "--shrink") {
       config.shrink = true;
+    } else if (arg === "--no-shrink") {
+      config.shrink = false;
     } else if (arg === "--export-fixture") {
       exportFixture = true;
     } else if (arg === "--help") {
@@ -165,6 +170,8 @@ Options:
   --read-ratio <0..1> Read probability, default ${defaultSearchConfig.readRatio}
   --chaos <0..1>      Partition intensity, default ${defaultSearchConfig.partitionIntensity}
   --concurrency <0..1> Overlap intensity, default ${defaultSearchConfig.concurrentIntensity}
+  --shrink            Minimize the first failing generated scenario
+  --no-shrink         Preserve original generated failing scenarios
   --export-fixture   Print JSON with the minimized first-ack failure and corpus manifest entry
   --help              Show this help
 `);
