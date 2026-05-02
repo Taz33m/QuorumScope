@@ -1,0 +1,287 @@
+\documentclass[10pt]{article}
+
+\usepackage[margin=0.85in]{geometry}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+
+\title{QuorumScope: A Bounded Consistency Testing Workbench for Replicated Registers}
+\author{QuorumScope artifact report}
+\date{\today}
+
+\newcommand{\qs}{QuorumScope}
+\newcommand{\firstack}{first-ack}
+\newcommand{\quorum}{quorum}
+\newcommand{\cmd}[1]{\texttt{#1}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\qs{} is a bounded consistency-testing workbench for a replicated single-key register under
+network partitions. The artifact compares a deliberately unsafe \firstack{} protocol, which
+accepts the first reachable replica response, against a majority \quorum{} protocol that may
+return unavailable instead of stale data. The core engine includes a deterministic partition
+simulator, concurrent operation histories, a linearizability checker, counterexample shrinking,
+seeded adversarial search, a manifest-backed regression corpus, and a tiny bounded exhaustive
+explorer. The current evaluation finds stale-read violations for \firstack{} in curated,
+generated, and exhaustive corpora. Under the same modeled assumptions, \quorum{} produced zero
+linearizability violations in the declared bounded corpora, while reporting unavailable
+operations as an explicit availability tradeoff. This report is an artifact technical report:
+it documents the implemented model, reproducible commands, observed results, and limitations. It
+does not claim a formal proof for arbitrary replicated systems.
+\end{abstract}
+
+\section{Introduction}
+
+Replicated storage systems can acknowledge an operation locally while still violating a global
+consistency property. A small partition can make this failure mode concrete: a majority side
+accepts a write, while a minority side later returns an older value. The local read may look
+successful because some replicas responded, but the resulting history is not linearizable if the
+write completed before the read began.
+
+\qs{} is built to make that failure inspectable. Rather than only displaying a hand-written
+split-brain example, the artifact can generate partition schedules, execute competing protocols
+on the same schedule, check the resulting histories, shrink failing scenarios, preserve selected
+counterexamples as regression fixtures, and enumerate a tiny finite model exhaustively. The
+workbench also exposes the checker state so that a user can see why a read is accepted, blocked
+by real-time order, or rejected by the single-register oracle.
+
+The goal is bounded engineering evidence, not a broad production model. The useful claim is not
+``quorum is proven correct.'' The useful claim is narrower: for the declared fixtures, default
+adversarial generated corpus, and tiny exhaustive model reported below, no \quorum{}
+linearizability violations were observed under the current register and partition assumptions,
+and the availability cost was counted.
+
+\section{System Model}
+
+The model is a deterministic replicated register with a single key and a finite set of replicas.
+Clients issue read and write operations. Each successful operation records an invocation time,
+a response time, the reachable replicas consulted by the protocol, the returned value or written
+value, and a status. Operations that cannot complete under a protocol are recorded as
+unavailable. Unavailable operations are part of the product result because they expose the
+safety/availability tradeoff, but they are not treated as successful completed operations in the
+linearizability check.
+
+Partitions are represented as reachability groups over replica identifiers. A scenario is a
+bounded sequence of operation and topology steps. The simulator uses deterministic timing, so
+the same scenario, seed, and configuration reproduce the same event trace. The current model
+does not simulate a real network stack, arbitrary message delay interleavings, durability,
+leader election, retries, or message loss beyond the modeled reachability constraints.
+
+The artifact includes two protocols:
+
+\begin{itemize}
+  \item \textbf{\firstack{}.} A read or write completes after the first reachable replica response.
+  This is intentionally unsafe under partitions because it can read from a minority side that has
+  not observed a completed write.
+  \item \textbf{\quorum{}.} A read or write requires a majority of replicas. In the modeled
+  scenarios, this prevents the stale minority read from completing, but it may make operations
+  unavailable while a partition is active.
+\end{itemize}
+
+Both protocols are run against the same generated or enumerated schedules so that the comparison
+is about protocol behavior rather than different workloads.
+
+\section{Linearizability Checking}
+
+The checker consumes a history of completed operations over the single-key register. It enforces
+real-time order: if operation $a$ finishes before operation $b$ starts, any legal sequential
+linearization must place $a$ before $b$. It then searches for a sequential order that preserves
+those constraints and satisfies the register specification. Writes update the oracle value; reads
+must return the current oracle value at their linearization point.
+
+If a legal order exists, the checker returns a witness order and final register value. If no legal
+order exists, the checker returns a violation witness when available. A common witness is a stale
+read: a read returned value $v_0$ even though a completed write to $v_1$ must precede it in every
+legal order. For example, the default curated split-brain replay reports:
+\begin{quote}
+\texttt{op3 read returned v0 after op2 write completed with v1.}
+\end{quote}
+
+The checker also emits oracle diagnostics. These diagnostics include the successful operations
+checked, unavailable operations ignored by the linearizability search, real-time predecessor
+constraints, the number of search states explored, memoized dead-end hits, candidate operations
+per captured state, and candidate statuses. Candidate statuses distinguish operations that are
+ready, blocked by real-time predecessors, or rejected because a read does not match the current
+oracle value.
+
+The checker proves only a property of the supplied finite history: whether that history is
+linearizable with respect to the implemented single-register specification. It does not prove a
+protocol correct for all histories, all networks, or all implementations.
+
+\section{Counterexample Search and Shrinking}
+
+\qs{} has three paths for producing histories.
+
+First, the curated split-brain replay demonstrates a minimal human-readable stale read: a write
+completes on the majority side, then a minority read under \firstack{} returns the old value.
+
+Second, seeded adversarial search generates bounded partition schedules with configurable seed,
+operation count, client count, read/write mix, partition intensity, and concurrency intensity.
+The default search run used in this report explored 50 seeds from seed 143 with 5 nodes, 8
+operations, 3 clients, partition intensity 0.75, and concurrent intensity 0.45. It found a first
+\firstack{} violation at seed 143, with an original 11-step scenario shrunk to 3 steps:
+\begin{quote}
+\texttt{op2 read returned v0 after op1 write completed with v143-0-x1.}
+\end{quote}
+The reproduction command printed by the tool is:
+\begin{verbatim}
+npm run search -- --seed 143 --seeds 1 --protocol compare --nodes 5 \
+  --ops 8 --clients 3 --read-ratio 0.55 --chaos 0.75 \
+  --concurrency 0.45 --shrink
+\end{verbatim}
+
+Third, selected minimized failures are promoted into a manifest-backed regression corpus. The
+current corpus contains four fixtures: a curated split-brain stale read, a minimized adversarial
+search failure, a concurrent safe-overlap fixture, and a minimized exhaustive stale-read witness.
+The corpus runner validates expectations and reports mismatches if fixture behavior drifts.
+
+\section{Bounded Exhaustive Explorer}
+
+The bounded exhaustive explorer enumerates a deliberately tiny finite model. The current default
+configuration uses 3 replicas, 2 clients, a single key, at most 3 operations, at most 2 topology
+changes, healed topology plus canonical 1/2 partitions, and deterministic simulator timing.
+Concurrent schedules are included, but message timing interleavings are not exhaustively
+enumerated.
+
+For each enumerated terminal history, both protocols are checked. A terminal history is one
+fully generated scenario at the configured operation and topology bounds, after simulator
+execution and history extraction. The explorer reports exactly what it covered: prefixes
+explored, terminal histories checked, unique scenarios, concurrent schedules, partition shapes,
+operation patterns, violations, stale-read witnesses, and unavailable operations.
+
+In the current run, the explorer checked 1000 terminal histories and explored 1339 prefixes.
+It found 144 \firstack{} violations, including 126 stale-read witnesses. For \quorum{}, it found
+0 linearizability violations and counted 1064 unavailable operations. The bounded claim emitted
+by the tool is intentionally scoped:
+\begin{quote}
+Within the tiny 3-replica / 2-client / 3-operation scenario model explored here, quorum produced
+0 linearizability violations under the current register and partition assumptions. This is not a
+proof for arbitrary systems.
+\end{quote}
+
+\section{Evaluation}
+
+All numbers in this section come from commands run on the current checkout before writing this
+report. The product verification command completed successfully and includes tests, typecheck,
+production build, UI smoke, demo, corpus replay, search comparison, exhaustive exploration, and
+product report.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|p{0.31\linewidth}|p{0.6\linewidth}|}
+\hline
+\textbf{Command} & \textbf{Observed result} \\
+\hline
+\cmd{npm test} & 16 test files passed; 82 tests passed. \\
+\hline
+\cmd{npm run verify:product} & Product verification passed; UI smoke reported 20/20 checks. \\
+\hline
+\cmd{npm run corpus} & 4 fixtures; 8 expected outcomes matched; 0 mismatches. \\
+\hline
+\cmd{npm run search} & 50 seeds explored; first failing seed 143; 50 \firstack{} violations; 0 \quorum{} violations; 155 \quorum{} unavailable operations. \\
+\hline
+\cmd{npm run exhaustive} & 1000 terminal histories checked; 1339 prefixes explored; 144 \firstack{} violations; 0 \quorum{} violations; 1064 \quorum{} unavailable operations. \\
+\hline
+\cmd{npm run bench} & Deterministic benchmark seed 4310, 50 runs: \firstack{} had 50 violations and 50 stale-read witnesses; \quorum{} had 0 violations and 50 unavailable operations. \\
+\hline
+\end{tabular}
+\caption{Current artifact verification snapshot.}
+\end{table}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{|p{0.25\linewidth}|r|r|r|p{0.23\linewidth}|}
+\hline
+\textbf{Surface} & \textbf{FA viol.} & \textbf{Q viol.} & \textbf{Q unavail.} & \textbf{Notes} \\
+\hline
+Regression corpus & 3/4 & 0/4 & 4 & 4 fixtures, 8 outcomes matched. \\
+\hline
+Adversarial search & 50/50 & 0/50 & 155 & First failure seed 143; 3 minimized steps. \\
+\hline
+Tiny exhaustive model & 144 & 0 & 1064 & 1000 terminal histories; 392 concurrent schedules. \\
+\hline
+Deterministic benchmark & 50/50 & 0/50 & 50 & Seed 4310; average 42 events. \\
+\hline
+\end{tabular}
+\caption{Safety and availability results by product surface.}
+\end{table}
+
+The result pattern is consistent across surfaces: \firstack{} is unsafe under the modeled
+partitions, while \quorum{} avoids the stale-read violations in these bounded corpora by refusing
+some operations.
+
+\section{Workbench and Product Surface}
+
+The browser workbench is implemented with Vite, React, and TypeScript. It is a technical
+workbench rather than a marketing page. The UI exposes the generated or loaded scenario,
+protocol selection, replay controls, partition visualization, operation timeline, event trace,
+checker verdict, minimized counterexample, protocol comparison, benchmark table, and
+linearizability oracle diagnostics. The oracle panel shows real-time predecessor constraints and
+captured checker search states so that the hard part of the artifact is visible.
+
+The CLI is the primary reproducibility surface. \cmd{npm run report} aggregates corpus replay,
+default adversarial search, tiny exhaustive exploration, protocol comparison, provenance, bounded
+claims, and reproduction commands. \cmd{npm run smoke:ui} is a headless build smoke that checks
+the generated Vite shell and core workbench surfaces; it is useful for unattended automation but
+is not a substitute for interactive browser testing.
+
+\section{Limitations}
+
+\qs{} is intentionally narrow. The current artifact has the following limitations:
+
+\begin{itemize}
+  \item It models a single-key register, not a multi-key database or transaction system.
+  \item The network model is a simplified partition/reachability model, not a real network.
+  \item Search is bounded and generated; exhaustive exploration covers only the declared tiny
+  finite model.
+  \item Simulator timing is deterministic and does not enumerate all message delay schedules.
+  \item The protocols are simple \firstack{} and majority \quorum{} register protocols, not Raft,
+  Paxos, leader election, or a production replication system.
+  \item The model does not include durability, storage crashes, retries, read repair, Byzantine
+  faults, or real deployment behavior.
+  \item The absence of \quorum{} violations in the reported corpora is bounded evidence under the
+  current assumptions, not a general proof of quorum correctness.
+\end{itemize}
+
+\section{Future Work}
+
+The most useful extensions would deepen the model without hiding its assumptions. Candidate
+directions include a richer scheduler and message-delay model, stronger exhaustive bounds for
+small configurations, multi-key histories, predicate reads or transaction-isolation variants,
+better interactive replay and import/export workflows, and additional protocol models once the
+current register model remains stable under the expanded checks. Any future protocol additions
+should include explicit assumptions, deterministic fixtures, corpus expectations, and bounded
+claims.
+
+\appendix
+\section{Reproducibility Commands}
+
+The following commands reproduce the current artifact surfaces from a clean checkout with Node
+dependencies installed:
+
+\begin{verbatim}
+npm install
+npm test
+npm run verify:product
+npm run report
+npm run bench
+npm run search
+npm run exhaustive
+npm run corpus
+npm run smoke:ui
+\end{verbatim}
+
+The key counterexample reproduction commands emitted by the current tools are:
+\begin{verbatim}
+npm run search -- --seed 143 --seeds 1 --protocol compare --nodes 5 \
+  --ops 8 --clients 3 --read-ratio 0.55 --chaos 0.75 \
+  --concurrency 0.45 --shrink
+
+npm run exhaustive -- --case ex-000043 --max-ops 3 --topology 2 \
+  --clients 2 --seed 7001 --show
+\end{verbatim}
+
+\end{document}

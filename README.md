@@ -2,6 +2,8 @@
 
 QuorumScope is a deterministic consistency-testing workbench for a single replicated register. It can replay curated counterexamples, generate bounded adversarial partition schedules, exhaustively enumerate a tiny finite scenario model, shrink discovered failures, validate a regression corpus, and check whether every successful read is linearizable.
 
+See `paper/quorumscope.tex` for the artifact technical report.
+
 ## Technical Thesis
 
 Network partitions create histories that can look locally successful while violating global correctness. QuorumScope makes that failure inspectable: first-ack replication can accept a write on one partition and later return a stale successful read from another. The quorum protocol runs the same generated schedule and, under this model, avoids the stale read by making minority operations unavailable.
