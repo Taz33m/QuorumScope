@@ -4,6 +4,9 @@ import { analyzeScenario, splitBrainStaleReadScenario } from "../core";
 import type { AnalysisResult, ProtocolName, Scenario } from "../core";
 
 const protocols: ProtocolName[] = ["unsafe", "quorum"];
+if (process.argv.includes("--help")) {
+  printHelpAndExit();
+}
 const scenario = loadScenario(process.argv[2]);
 
 for (const protocol of protocols) {
@@ -64,4 +67,15 @@ function printResult(result: AnalysisResult): void {
 
 function protocolLabel(protocol: ProtocolName): string {
   return protocol === "unsafe" ? "FIRST-ACK" : "QUORUM";
+}
+
+function printHelpAndExit(): never {
+  console.log(`Usage: npm run demo -- [scenario.json]
+
+Replays a scenario under First-ack and Quorum. Defaults to the curated split-brain fixture.
+
+Options:
+  --help     Show this help
+`);
+  process.exit(0);
 }

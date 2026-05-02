@@ -190,6 +190,7 @@ Options:
   --no-concurrency    Disable one bounded overlapping operation batch
   --case <id> --show  Print a reproducible enumerated scenario
   --json              Print machine-readable summary
+  --help              Show this help
 `);
   process.exit(0);
 }

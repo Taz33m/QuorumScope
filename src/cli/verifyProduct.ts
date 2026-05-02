@@ -1,5 +1,9 @@
 import { spawnSync } from "node:child_process";
 
+if (process.argv.includes("--help")) {
+  printHelpAndExit();
+}
+
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 const checks = [
   ["test"],
@@ -36,3 +40,14 @@ for (const args of checks) {
 
 console.log("");
 console.log("Product verification passed.");
+
+function printHelpAndExit(): never {
+  console.log(`Usage: npm run verify:product -- [options]
+
+Runs the local product trust path: tests, typecheck, build, demo, corpus, search comparison, exhaustive explorer, and report.
+
+Options:
+  --help     Show this help
+`);
+  process.exit(0);
+}

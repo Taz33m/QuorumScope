@@ -134,8 +134,10 @@ Options:
   --nodes <n>         Replica count, default ${defaultSearchConfig.nodeCount}
   --ops <n>           Operation count, default ${defaultSearchConfig.operationCount}
   --clients <n>       Client count, default ${defaultSearchConfig.clientCount}
+  --read-ratio <0..1> Read probability, default ${defaultSearchConfig.readRatio}
   --chaos <0..1>      Partition intensity, default ${defaultSearchConfig.partitionIntensity}
   --concurrency <0..1> Overlap intensity, default ${defaultSearchConfig.concurrentIntensity}
+  --help              Show this help
 `);
   process.exit(0);
 }

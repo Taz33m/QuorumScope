@@ -1,5 +1,9 @@
 import { runBenchmark, runSearchBenchmark } from "../core";
 
+if (process.argv.includes("--help")) {
+  printHelpAndExit();
+}
+
 const runsArg = Number.parseInt(process.argv[2] ?? "", 10);
 const runs = Number.isFinite(runsArg) ? runsArg : 50;
 if (!Number.isInteger(runs) || runs < 1 || runs > 500) {
@@ -40,3 +44,15 @@ console.table([
   },
 ]);
 console.log(searchResult.claim);
+
+function printHelpAndExit(): never {
+  console.log(`Usage: npm run bench -- [runs]
+
+Runs deterministic benchmark summaries for the curated partition probe and adversarial search corpus.
+
+Options:
+  runs       Number of runs, default 50, max 500
+  --help     Show this help
+`);
+  process.exit(0);
+}

@@ -5,6 +5,10 @@ import {
   type CorpusProtocolResult,
 } from "../core/corpus";
 
+if (process.argv.includes("--help")) {
+  printHelpAndExit();
+}
+
 const json = process.argv.includes("--json");
 const result = runCorpus();
 
@@ -96,4 +100,14 @@ function protocolSummary(result: CorpusProtocolResult): string {
 
 function protocolLabel(protocol: string): string {
   return protocol === "unsafe" ? "First-ack" : "Quorum";
+}
+
+function printHelpAndExit(): never {
+  console.log(`Usage: npm run corpus -- [options]
+
+Options:
+  --json     Print machine-readable corpus replay results
+  --help     Show this help
+`);
+  process.exit(0);
 }

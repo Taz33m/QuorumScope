@@ -1,5 +1,9 @@
 import { buildProductReport } from "../core/report";
 
+if (process.argv.includes("--help")) {
+  printHelpAndExit();
+}
+
 const json = process.argv.includes("--json");
 const report = buildProductReport();
 
@@ -92,4 +96,14 @@ for (const command of report.reproduce) {
 
 if (!report.corpus.ok) {
   process.exitCode = 1;
+}
+
+function printHelpAndExit(): never {
+  console.log(`Usage: npm run report -- [options]
+
+Options:
+  --json     Print machine-readable product report
+  --help     Show this help
+`);
+  process.exit(0);
 }
