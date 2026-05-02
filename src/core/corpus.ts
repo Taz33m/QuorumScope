@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { basename, dirname, isAbsolute, normalize, resolve } from "node:path";
 import { analyzeScenario } from "./analyze";
+import { summarizeWitness } from "./explanations";
 import { assertValidScenario, validateScenario } from "./scenarioValidation";
 import type { AnalysisResult, ProtocolName, Scenario } from "./types";
 
@@ -350,7 +351,7 @@ function evaluateProtocolExpectation(
     violationKind,
     unavailableOperations,
     finalValue,
-    witnessSummary: summarizeWitness(analysis),
+    witnessSummary: summarizeWitness(analysis.verdict.witness),
     minimizedSteps: analysis.minimizedFailure?.scenario.steps.length,
     mismatches: issues.map((issue) => issue.message),
     issues,
@@ -502,17 +503,6 @@ function requireString(
     return undefined;
   }
   return field;
-}
-
-function summarizeWitness(result: AnalysisResult): string | undefined {
-  const witness = result.verdict.witness;
-  if (witness?.type === "stale-read") {
-    return `${witness.read.id} returned ${witness.observed} after ${witness.priorWrite.id} wrote ${witness.expected}`;
-  }
-  if (witness) {
-    return witness.explanation;
-  }
-  return undefined;
 }
 
 function hashScenario(scenario: Scenario): string {

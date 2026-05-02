@@ -2,6 +2,7 @@ import {
   defaultSearchConfig,
   reproductionCommand,
   runAdversarialSearch,
+  summarizeWitness,
   type ProtocolName,
   type SearchConfig,
 } from "../core";
@@ -27,12 +28,8 @@ if (result.firstFailure) {
   console.log(
     `Minimized steps: ${selected.minimized?.scenario.steps.length ?? failure.scenario.steps.length}`,
   );
-  if (witness?.type === "stale-read") {
-    console.log(
-      `Violation: read returned ${witness.observed} after write ${witness.expected} completed`,
-    );
-  } else if (witness) {
-    console.log(`Violation: ${witness.explanation}`);
+  if (witness) {
+    console.log(`Violation: ${summarizeWitness(witness)}`);
   }
   console.log(`Reproduce: ${reproductionCommand(failure.seed, protocol)}`);
   console.log(

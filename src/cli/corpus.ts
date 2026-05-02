@@ -69,7 +69,7 @@ function protocolSummary(result: CorpusProtocolResult): string {
     `unavailable=${result.unavailableOperations}`,
   ];
   if (result.witnessSummary) {
-    parts.push(result.witnessSummary);
+    parts.push(stripTerminalPeriod(result.witnessSummary));
   }
   if (result.finalValue) {
     parts.push(`final=${result.finalValue}`);
@@ -78,6 +78,10 @@ function protocolSummary(result: CorpusProtocolResult): string {
     parts.push(`minimizedSteps=${result.minimizedSteps}`);
   }
   return parts.join("; ");
+}
+
+function stripTerminalPeriod(value: string): string {
+  return value.endsWith(".") ? value.slice(0, -1) : value;
 }
 
 function protocolLabel(protocol: string): string {

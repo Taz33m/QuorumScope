@@ -2,6 +2,7 @@ import {
   defaultExhaustiveConfig,
   findExhaustiveCase,
   runBoundedExhaustive,
+  summarizeWitness,
   type ExhaustiveConfig,
   type ExhaustiveProtocolSummary,
 } from "../core";
@@ -88,13 +89,10 @@ function printProtocol(summary: ExhaustiveProtocolSummary): void {
     const witness = summary.firstViolation.witness;
     if (witness?.type === "stale-read") {
       console.log(`- first reported stale-read: ${summary.firstViolation.caseId}`);
-      console.log(
-        `- witness: ${witness.read.id} returned ${witness.observed} after ${witness.priorWrite.id} wrote ${witness.expected}`,
-      );
     } else if (witness) {
       console.log(`- first violation: ${summary.firstViolation.caseId}`);
-      console.log(`- witness: ${witness.explanation}`);
     }
+    console.log(`- witness: ${summarizeWitness(witness) ?? "none"}`);
     console.log(
       `- minimized steps: ${
         summary.firstViolation.minimized?.scenario.steps.length ??

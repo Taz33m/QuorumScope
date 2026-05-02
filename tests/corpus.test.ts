@@ -123,6 +123,7 @@ describe("manifest-driven regression corpus", () => {
     expect(output).toContain("Manifest:");
     expect(output).toContain("Expected outcomes matched: 6");
     expect(output).toContain("concurrent-safe-overlap");
+    expect(output).not.toContain(".;");
   });
 });
 

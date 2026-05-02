@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 import { runCorpus } from "../src/core/corpus";
+import { summarizeWitness } from "../src/core/explanations";
 import { buildCorpusJsonContract, buildProductReportJsonContract } from "../src/core/jsonContracts";
 import { buildProductReport } from "../src/core/report";
 
@@ -46,7 +47,8 @@ describe("human corpus output", () => {
 
 describe("human product report", () => {
   it("keeps the text summary aligned with the JSON contract", () => {
-    const contract = buildProductReportJsonContract(buildProductReport());
+    const report = buildProductReport();
+    const contract = buildProductReportJsonContract(report);
     const output = execFileSync(
       "node",
       ["--import", "tsx", "src/cli/report.ts"],
@@ -86,6 +88,9 @@ describe("human product report", () => {
     expect(output).toContain(
       `- minimized steps: ${contract.search.firstFailure?.minimizedSteps ?? "n/a"}`,
     );
+    expect(output).toContain(
+      `- first failure witness: ${summarizeWitness(contract.search.firstFailure?.witness) ?? "none"}`,
+    );
 
     expect(output).toContain(
       `- terminal histories checked: ${contract.exhaustive.coverage.terminalHistories}`,
@@ -107,6 +112,11 @@ describe("human product report", () => {
     );
     expect(output).toContain(
       `- first exhaustive violation: ${contract.exhaustive.unsafe.firstViolation?.caseId ?? "none"}`,
+    );
+    expect(output).toContain(
+      `- first exhaustive witness: ${
+        summarizeWitness(report.exhaustive.unsafe.firstViolation?.witness) ?? "none"
+      }`,
     );
 
     expect(output).toContain(contract.boundedClaim);

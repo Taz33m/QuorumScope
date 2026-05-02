@@ -1,5 +1,6 @@
 import { buildProductReport } from "../core/report";
 import { buildProductReportJsonContract } from "../core/jsonContracts";
+import { summarizeWitness } from "../core";
 
 if (process.argv.includes("--help")) {
   printHelpAndExit();
@@ -48,6 +49,11 @@ console.log(
     "n/a"
   }`,
 );
+console.log(
+  `- first failure witness: ${
+    summarizeWitness(report.search.firstFailure?.unsafe.analysis.verdict.witness) ?? "none"
+  }`,
+);
 
 console.log("");
 console.log("Tiny exhaustive model:");
@@ -58,6 +64,11 @@ console.log(`- first-ack stale-read witnesses: ${report.exhaustive.unsafe.staleR
 console.log(`- quorum violations: ${report.exhaustive.quorum.violations}`);
 console.log(`- quorum unavailable operations: ${report.exhaustive.quorum.unavailableOperations}`);
 console.log(`- first exhaustive violation: ${report.exhaustive.unsafe.firstViolation?.caseId ?? "none"}`);
+console.log(
+  `- first exhaustive witness: ${
+    summarizeWitness(report.exhaustive.unsafe.firstViolation?.witness) ?? "none"
+  }`,
+);
 
 console.log("");
 console.log("Bounded claim:");

@@ -16,10 +16,13 @@ import { useEffect, useMemo, useState } from "react";
 import {
   analyzeScenario,
   defaultSearchConfig,
+  detailWitness,
   reproductionCommand,
   runBenchmark,
   runAdversarialSearch,
   splitBrainStaleReadScenario,
+  summarizeVerdict,
+  summarizeWitness,
   type AdversarialSearchResult,
   type AnalysisResult,
   type EventRecord,
@@ -179,10 +182,7 @@ export function App() {
       <section className="proof-strip" aria-label="Demo proof">
         <div>
           <span>First-ack failure</span>
-          <strong>
-            {unsafeWitness?.priorWrite.id ?? "op2"} writes {unsafeWitness?.expected ?? "v1"};{" "}
-            {unsafeWitness?.read.id ?? "op3"} reads {unsafeWitness?.observed ?? "v0"}
-          </strong>
+          <strong>{summarizeWitness(unsafeWitness) ?? "No stale-read witness in this scenario"}</strong>
         </div>
         <div>
           <span>Quorum contrast</span>
@@ -441,9 +441,9 @@ function AdversarialSearchPanel({
           <span>First failure</span>
           <strong>{failure ? `seed ${failure.seed}` : "none found"}</strong>
           <p>
-            {witness?.type === "stale-read"
-              ? `${witness.read.id} returned ${witness.observed} after ${witness.priorWrite.id} wrote ${witness.expected}.`
-              : "No stale-read witness in the explored corpus."}
+            {witness
+              ? summarizeWitness(witness)
+              : "No violation witness in the explored corpus."}
           </p>
         </div>
         <div>
@@ -604,18 +604,15 @@ function VerdictPanel({ result }: { result: AnalysisResult }) {
           <CheckCircle2 size={20} />
           <div>
             <strong>Legal sequential order exists.</strong>
-            <p>
-              {result.verdict.legalOrder.join(" -> ")}
-              {result.verdict.finalValue ? `; final value ${result.verdict.finalValue}` : ""}
-            </p>
+            <p>{summarizeVerdict(result.verdict, result.scenario.initialValue)}</p>
           </div>
         </div>
       ) : witness?.type === "stale-read" ? (
         <div className="proof bad">
           <AlertTriangle size={20} />
           <div>
-            <strong>{witness.read.id} returned {witness.observed} after {witness.priorWrite.id} wrote {witness.expected}.</strong>
-            <p>{witness.explanation}</p>
+            <strong>{summarizeWitness(witness)}</strong>
+            <p>{detailWitness(witness)}</p>
           </div>
         </div>
       ) : (
@@ -623,7 +620,7 @@ function VerdictPanel({ result }: { result: AnalysisResult }) {
           <AlertTriangle size={20} />
           <div>
             <strong>No legal order found.</strong>
-            <p>{witness?.explanation}</p>
+            <p>{detailWitness(witness)}</p>
           </div>
         </div>
       )}

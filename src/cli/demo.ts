@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { analyzeScenario, splitBrainStaleReadScenario } from "../core";
+import { analyzeScenario, detailWitness, splitBrainStaleReadScenario, summarizeVerdict, summarizeWitness } from "../core";
 import type { AnalysisResult, ProtocolName, Scenario } from "../core";
 
 const protocols: ProtocolName[] = ["unsafe", "quorum"];
@@ -40,17 +40,11 @@ function printResult(result: AnalysisResult): void {
     );
   }
 
-  if (result.verdict.witness?.type === "stale-read") {
-    const witness = result.verdict.witness;
-    console.log(
-      `witness: ${witness.read.id} returned ${witness.observed}, but ${witness.priorWrite.id} completed first with ${witness.expected}`,
-    );
-  } else if (result.verdict.ok) {
-    console.log(
-      `legal order: ${result.verdict.legalOrder.join(" -> ")}; final value ${result.verdict.finalValue ?? result.scenario.initialValue}`,
-    );
+  if (result.verdict.ok) {
+    console.log(summarizeVerdict(result.verdict, result.scenario.initialValue));
   } else if (result.verdict.witness) {
-    console.log(`witness: ${result.verdict.witness.explanation}`);
+    console.log(`witness: ${summarizeWitness(result.verdict.witness)}`);
+    console.log(`why: ${detailWitness(result.verdict.witness)}`);
   }
 
   if (result.minimizedFailure) {
