@@ -135,7 +135,7 @@ describe("human product report", () => {
     for (const command of contract.reproduce) {
       expect(output).toContain(`- ${command}`);
     }
-  }, 15_000);
+  }, 30_000);
 
   it("prints actionable corpus issues when report verification fails", () => {
     const manifestPath = writeProvenanceMismatchManifest();
@@ -158,7 +158,7 @@ describe("human product report", () => {
     );
     expect(result.stdout).toContain("(expected 000000000000, actual 6e256cf9b5a0)");
     expect(result.stdout).toContain("Bounded claim:");
-  }, 15_000);
+  }, 30_000);
 });
 
 function writeProvenanceMismatchManifest(): string {

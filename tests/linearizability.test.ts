@@ -25,6 +25,15 @@ describe("linearizability checker", () => {
       legalOrder: ["w1", "r1"],
       finalValue: "v1",
     });
+    const verdict = checkLinearizability(history, "v0");
+    expect(verdict.diagnostics.realTimePredecessors).toEqual({
+      w1: [],
+      r1: ["w1"],
+    });
+    expect(verdict.diagnostics.steps[0]?.candidates).toEqual([
+      expect.objectContaining({ operationId: "w1", status: "ready" }),
+      expect.objectContaining({ operationId: "r1", status: "blocked", blockers: ["w1"] }),
+    ]);
   });
 
   it("rejects a stale read after a completed write", () => {
@@ -41,6 +50,17 @@ describe("linearizability checker", () => {
       observed: "v0",
       expected: "v1",
     });
+    expect(
+      verdict.diagnostics.steps.some((step) =>
+        step.candidates.some(
+          (candidate) =>
+            candidate.operationId === "r1" &&
+            candidate.status === "rejected-read" &&
+            candidate.expectedValue === "v1" &&
+            candidate.observedValue === "v0",
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("allows a read concurrent with a write to see the old value", () => {
@@ -53,6 +73,33 @@ describe("linearizability checker", () => {
       ok: true,
       finalValue: "v1",
     });
+    const verdict = checkLinearizability(history, "v0");
+    expect(verdict.diagnostics.realTimePredecessors).toEqual({
+      w1: [],
+      r1: [],
+    });
+  });
+
+  it("records unavailable operations without checking them", () => {
+    const history: OperationRecord[] = [
+      { ...base, id: "w1", kind: "write", start: 1, end: 2, input: "v1", output: "ok" },
+      {
+        ...base,
+        id: "r-unavailable",
+        kind: "read",
+        start: 3,
+        end: 4,
+        status: "unavailable",
+        output: undefined,
+      },
+    ];
+
+    const verdict = checkLinearizability(history, "v0");
+
+    expect(verdict.ok).toBe(true);
+    expect(verdict.checkedOperations).toBe(1);
+    expect(verdict.diagnostics.successfulOperations).toEqual(["w1"]);
+    expect(verdict.diagnostics.unavailableOperations).toEqual(["r-unavailable"]);
   });
 
   it("handles more than 31 completed operations without bitmask aliasing", () => {

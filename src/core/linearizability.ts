@@ -1,4 +1,7 @@
 import type {
+  LinearizationCandidate,
+  LinearizationSearchStep,
+  LinearizabilityDiagnostics,
   LinearizabilityVerdict,
   OperationRecord,
   RegisterValue,
@@ -10,11 +13,22 @@ interface SearchSuccess {
   finalValue: RegisterValue;
 }
 
+interface SearchTrace {
+  exploredStates: number;
+  memoizedDeadEnds: number;
+  maxCapturedSteps: number;
+  truncated: boolean;
+  steps: LinearizationSearchStep[];
+}
+
+const maxCapturedSteps = 32;
+
 export function checkLinearizability(
   history: readonly OperationRecord[],
   initialValue: RegisterValue,
 ): LinearizabilityVerdict {
   const completed = history.filter((operation) => operation.status === "ok");
+  const unavailable = history.filter((operation) => operation.status !== "ok");
   const predecessorMasks = completed.map((operation) =>
     completed.reduce<bigint>((mask, candidate, index) => {
       if (candidate.id === operation.id || candidate.end > operation.start) {
@@ -24,7 +38,15 @@ export function checkLinearizability(
     }, 0n),
   );
   const memo = new Set<string>();
-  const search = dfs(completed, predecessorMasks, 0n, initialValue, [], memo);
+  const trace: SearchTrace = {
+    exploredStates: 0,
+    memoizedDeadEnds: 0,
+    maxCapturedSteps,
+    truncated: false,
+    steps: [],
+  };
+  const search = dfs(completed, predecessorMasks, 0n, initialValue, [], memo, trace);
+  const diagnostics = buildDiagnostics(completed, unavailable, predecessorMasks, trace);
   if (search) {
     return {
       ok: true,
@@ -32,6 +54,7 @@ export function checkLinearizability(
       legalOrder: search.order,
       finalValue: search.finalValue,
       explanation: `A legal single-register order exists; final value is ${search.finalValue}.`,
+      diagnostics,
     };
   }
 
@@ -51,6 +74,7 @@ export function checkLinearizability(
         explanation:
           "No sequential ordering can satisfy the register specification while preserving real-time operation order.",
       },
+    diagnostics,
   };
 }
 
@@ -61,7 +85,9 @@ function dfs(
   currentValue: RegisterValue,
   order: string[],
   memo: Set<string>,
+  trace: SearchTrace,
 ): SearchSuccess | undefined {
+  trace.exploredStates += 1;
   if (order.length === operations.length) {
     return {
       order,
@@ -70,8 +96,10 @@ function dfs(
   }
   const memoKey = `${placedMask.toString(36)}|${currentValue}`;
   if (memo.has(memoKey)) {
+    trace.memoizedDeadEnds += 1;
     return undefined;
   }
+  const searchStep = captureStep(operations, predecessorMasks, placedMask, currentValue, order, trace);
 
   for (let index = 0; index < operations.length; index += 1) {
     const bit = bitFor(index);
@@ -88,6 +116,9 @@ function dfs(
     if (operation.kind === "read" && operation.output !== currentValue) {
       continue;
     }
+    if (searchStep && !searchStep.chosenOperationId) {
+      searchStep.chosenOperationId = operation.id;
+    }
 
     const nextValue = operation.kind === "write" ? operation.input ?? currentValue : currentValue;
     const found = dfs(
@@ -97,6 +128,7 @@ function dfs(
       nextValue,
       [...order, operation.id],
       memo,
+      trace,
     );
     if (found) {
       return found;
@@ -109,6 +141,112 @@ function dfs(
 
 function bitFor(index: number): bigint {
   return 1n << BigInt(index);
+}
+
+function captureStep(
+  operations: readonly OperationRecord[],
+  predecessorMasks: readonly bigint[],
+  placedMask: bigint,
+  currentValue: RegisterValue,
+  order: readonly string[],
+  trace: SearchTrace,
+): LinearizationSearchStep | undefined {
+  if (trace.steps.length >= trace.maxCapturedSteps) {
+    trace.truncated = true;
+    return undefined;
+  }
+  const step: LinearizationSearchStep = {
+    placed: [...order],
+    currentValue,
+    candidates: candidateDiagnostics(operations, predecessorMasks, placedMask, currentValue),
+  };
+  trace.steps.push(step);
+  return step;
+}
+
+function candidateDiagnostics(
+  operations: readonly OperationRecord[],
+  predecessorMasks: readonly bigint[],
+  placedMask: bigint,
+  currentValue: RegisterValue,
+): LinearizationCandidate[] {
+  return operations.flatMap<LinearizationCandidate>((operation, index) => {
+    const bit = bitFor(index);
+    if ((placedMask & bit) !== 0n) {
+      return [];
+    }
+    const blockers = predecessorIds(operations, predecessorMasks[index] ?? 0n, placedMask);
+    if (blockers.length > 0) {
+      return [
+        {
+          operationId: operation.id,
+          kind: operation.kind,
+          status: "blocked",
+          blockers,
+          reason: `real-time predecessors not placed: ${blockers.join(", ")}`,
+        },
+      ];
+    }
+    if (operation.kind === "read" && operation.output !== currentValue) {
+      return [
+        {
+          operationId: operation.id,
+          kind: operation.kind,
+          status: "rejected-read",
+          blockers: [],
+          expectedValue: currentValue,
+          ...(operation.output === undefined ? {} : { observedValue: operation.output }),
+          reason: `read observed ${operation.output ?? "undefined"} while oracle value is ${currentValue}`,
+        },
+      ];
+    }
+    return [
+      {
+        operationId: operation.id,
+        kind: operation.kind,
+        status: "ready",
+        blockers: [],
+        reason:
+          operation.kind === "write"
+            ? `write can set value to ${operation.input ?? currentValue}`
+            : `read matches oracle value ${currentValue}`,
+      },
+    ];
+  });
+}
+
+function predecessorIds(
+  operations: readonly OperationRecord[],
+  predecessorMask: bigint,
+  placedMask: bigint,
+): string[] {
+  return operations.flatMap((operation, index) => {
+    const bit = bitFor(index);
+    return (predecessorMask & bit) !== 0n && (placedMask & bit) === 0n ? [operation.id] : [];
+  });
+}
+
+function buildDiagnostics(
+  completed: readonly OperationRecord[],
+  unavailable: readonly OperationRecord[],
+  predecessorMasks: readonly bigint[],
+  trace: SearchTrace,
+): LinearizabilityDiagnostics {
+  return {
+    successfulOperations: completed.map((operation) => operation.id),
+    unavailableOperations: unavailable.map((operation) => operation.id),
+    realTimePredecessors: Object.fromEntries(
+      completed.map((operation, index) => [
+        operation.id,
+        predecessorIds(completed, predecessorMasks[index] ?? 0n, 0n),
+      ]),
+    ),
+    exploredStates: trace.exploredStates,
+    memoizedDeadEnds: trace.memoizedDeadEnds,
+    maxCapturedSteps: trace.maxCapturedSteps,
+    truncated: trace.truncated,
+    steps: trace.steps,
+  };
 }
 
 function findStaleReadWitness(

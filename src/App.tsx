@@ -299,6 +299,7 @@ export function App() {
 
         <aside className="evidence-pane">
           <VerdictPanel result={result} />
+          <LinearizabilityOracle result={result} />
           <ProtocolComparison unsafe={analyses.unsafe} quorum={analyses.quorum} />
         </aside>
       </section>
@@ -658,6 +659,74 @@ function ProtocolComparison({ unsafe, quorum }: { unsafe: AnalysisResult; quorum
       ))}
     </section>
   );
+}
+
+function LinearizabilityOracle({ result }: { result: AnalysisResult }) {
+  const diagnostics = result.verdict.diagnostics;
+  const predecessorRows = result.operations.filter((operation) => operation.status === "ok");
+  const visibleSteps = diagnostics.steps.slice(0, 5);
+  return (
+    <section className="oracle-panel" aria-label="Linearizability oracle">
+      <div className="pane-heading">
+        <h2>Oracle Trace</h2>
+        <span>
+          {diagnostics.exploredStates} states · {diagnostics.memoizedDeadEnds} memo hits
+        </span>
+      </div>
+      <div className="oracle-summary">
+        <span>checked {diagnostics.successfulOperations.length} successful ops</span>
+        <span>ignored {diagnostics.unavailableOperations.length} unavailable ops</span>
+      </div>
+      <div className="predecessor-list" aria-label="Real-time predecessor constraints">
+        {predecessorRows.map((operation) => {
+          const predecessors = diagnostics.realTimePredecessors[operation.id] ?? [];
+          return (
+            <div key={operation.id} className="predecessor-row">
+              <strong>{operation.id}</strong>
+              <span>{predecessors.length > 0 ? predecessors.join(", ") : "no predecessor"}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="oracle-steps" aria-label="Checker search states">
+        {visibleSteps.map((step, index) => (
+          <div className="oracle-step" key={`${step.currentValue}-${index}-${step.placed.join("-")}`}>
+            <div className="oracle-step-head">
+              <strong>state {index + 1}</strong>
+              <span>
+                value {step.currentValue} · placed {step.placed.length > 0 ? step.placed.join(" -> ") : "none"}
+              </span>
+            </div>
+            <div className="candidate-list">
+              {step.candidates.map((candidate) => (
+                <span
+                  key={`${candidate.operationId}-${candidate.status}`}
+                  className="candidate-chip"
+                  data-status={candidate.status}
+                  title={candidate.reason}
+                >
+                  {candidate.operationId} {candidate.kind} · {candidateStatusLabel(candidate.status)}
+                </span>
+              ))}
+            </div>
+            {step.chosenOperationId ? (
+              <em>tries {step.chosenOperationId}</em>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      {diagnostics.truncated ? (
+        <p className="oracle-note">Trace capped at {diagnostics.maxCapturedSteps} states.</p>
+      ) : null}
+    </section>
+  );
+}
+
+function candidateStatusLabel(status: "ready" | "blocked" | "rejected-read"): string {
+  if (status === "rejected-read") {
+    return "reject";
+  }
+  return status;
 }
 
 function OperationTimeline({

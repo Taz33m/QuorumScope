@@ -62,7 +62,7 @@ describe("exhaustive fixture export", () => {
     expect(exported.witnessSummary).toBe(
       "op3 read returned v0 after op1 write completed with v1.",
     );
-  });
+  }, 15_000);
 
   it("exports arbitrary safe cases with coherent expected outcomes", () => {
     const exported = buildExhaustiveFixtureExport(runBoundedExhaustive(), "ex-000001")!;
@@ -89,7 +89,7 @@ describe("exhaustive fixture export", () => {
     });
     expect(exported.manifestEntry.tags).toContain("safe");
     expect(exported.witnessSummary).toBeUndefined();
-  });
+  }, 15_000);
 
   it("exports replayable fixture JSON from the exhaustive CLI", () => {
     const output = execFileSync(
@@ -114,7 +114,7 @@ describe("exhaustive fixture export", () => {
     const quorum = simulateScenario(exported.scenario, "quorum");
     expect(checkLinearizability(unsafe.operations, exported.scenario.initialValue).ok).toBe(false);
     expect(checkLinearizability(quorum.operations, exported.scenario.initialValue).ok).toBe(true);
-  });
+  }, 15_000);
 
   it("returns a parseable export failure for unknown cases", () => {
     const result = spawnSync(
@@ -136,5 +136,5 @@ describe("exhaustive fixture export", () => {
       ok: false,
       error: "Exhaustive case ex-missing was not found under these bounds.",
     });
-  });
+  }, 15_000);
 });

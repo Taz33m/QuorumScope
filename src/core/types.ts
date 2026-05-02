@@ -150,6 +150,36 @@ export interface SearchFailureWitness {
 
 export type LinearizabilityWitness = StaleReadWitness | SearchFailureWitness;
 
+export type LinearizationCandidateStatus = "ready" | "blocked" | "rejected-read";
+
+export interface LinearizationCandidate {
+  operationId: string;
+  kind: OperationKind;
+  status: LinearizationCandidateStatus;
+  blockers: string[];
+  reason: string;
+  expectedValue?: RegisterValue;
+  observedValue?: RegisterValue;
+}
+
+export interface LinearizationSearchStep {
+  placed: string[];
+  currentValue: RegisterValue;
+  candidates: LinearizationCandidate[];
+  chosenOperationId?: string;
+}
+
+export interface LinearizabilityDiagnostics {
+  successfulOperations: string[];
+  unavailableOperations: string[];
+  realTimePredecessors: Record<string, string[]>;
+  exploredStates: number;
+  memoizedDeadEnds: number;
+  maxCapturedSteps: number;
+  truncated: boolean;
+  steps: LinearizationSearchStep[];
+}
+
 export interface LinearizabilityVerdict {
   ok: boolean;
   checkedOperations: number;
@@ -157,6 +187,7 @@ export interface LinearizabilityVerdict {
   finalValue?: RegisterValue;
   explanation: string;
   witness?: LinearizabilityWitness;
+  diagnostics: LinearizabilityDiagnostics;
 }
 
 export interface AnalysisResult extends SimulationResult {

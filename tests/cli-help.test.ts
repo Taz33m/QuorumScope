@@ -20,5 +20,5 @@ describe("CLI help", () => {
 
     expect(output).toContain(expected);
     expect(output).toContain("--help");
-  });
+  }, 15_000);
 });

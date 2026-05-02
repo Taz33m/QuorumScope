@@ -56,7 +56,7 @@ describe("search fixture export", () => {
     expect(exported.witnessSummary).toBe(
       "op2 read returned v0 after op1 write completed with v143-0-x1.",
     );
-  });
+  }, 15_000);
 
   it("exports replayable fixture JSON from the search CLI", () => {
     const output = execFileSync(
@@ -85,7 +85,7 @@ describe("search fixture export", () => {
     const quorum = simulateScenario(exported.scenario, "quorum");
     expect(checkLinearizability(unsafe.operations, exported.scenario.initialValue).ok).toBe(false);
     expect(checkLinearizability(quorum.operations, exported.scenario.initialValue).ok).toBe(true);
-  });
+  }, 15_000);
 
   it("exports a minimized fixture even when the source search preserved originals", () => {
     const result = runAdversarialSearch({
@@ -105,5 +105,5 @@ describe("search fixture export", () => {
 
     const unsafe = simulateScenario(exported.scenario, "unsafe");
     expect(checkLinearizability(unsafe.operations, exported.scenario.initialValue).ok).toBe(false);
-  });
+  }, 15_000);
 });

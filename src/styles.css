@@ -583,6 +583,7 @@ h2 {
 }
 
 .verdict-panel,
+.oracle-panel,
 .comparison,
 .timeline-panel,
 .event-panel,
@@ -642,6 +643,110 @@ h2 {
 .comparison {
   display: grid;
   gap: 10px;
+}
+
+.oracle-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.oracle-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #42515a;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.oracle-summary span {
+  padding: 5px 8px;
+  border: 1px solid #d8dee2;
+  border-radius: 6px;
+  background: #f7f9fa;
+}
+
+.predecessor-list,
+.oracle-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.predecessor-row {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 8px;
+  align-items: center;
+  min-height: 32px;
+  padding: 7px 8px;
+  border: 1px solid #d8dee2;
+  border-radius: 6px;
+  font-size: 0.84rem;
+}
+
+.predecessor-row strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.predecessor-row span {
+  color: #42515a;
+}
+
+.oracle-step {
+  padding: 9px;
+  border: 1px solid #d8dee2;
+  border-radius: 6px;
+  background: #fbfcfc;
+}
+
+.oracle-step-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.oracle-step-head span,
+.oracle-step em,
+.oracle-note {
+  color: #687780;
+  font-size: 0.8rem;
+  font-style: normal;
+}
+
+.candidate-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.candidate-chip {
+  padding: 4px 7px;
+  border-radius: 999px;
+  border: 1px solid #cad3d8;
+  color: #26343c;
+  background: white;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.candidate-chip[data-status="ready"] {
+  border-color: rgba(12, 111, 92, 0.25);
+  color: #0c6f5c;
+  background: #e9f8f5;
+}
+
+.candidate-chip[data-status="blocked"] {
+  color: #5b6670;
+  background: #f3f5f6;
+}
+
+.candidate-chip[data-status="rejected-read"] {
+  border-color: rgba(180, 35, 24, 0.25);
+  color: #b42318;
+  background: #fff0ed;
 }
 
 .comparison-row {
