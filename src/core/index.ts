@@ -14,7 +14,6 @@ export {
   type ExhaustiveSearchComparison,
   type ExhaustiveViolation,
 } from "./exhaustive";
-export { buildExhaustiveFixtureExport, type ExhaustiveFixtureExport } from "./exhaustiveExport";
 export { fixtures, splitBrainStaleReadScenario } from "./fixtures";
 export { detailWitness, explainWitness, summarizeVerdict, summarizeWitness } from "./explanations";
 export { checkLinearizability } from "./linearizability";
@@ -25,7 +24,6 @@ export {
   reproductionCommand,
   runAdversarialSearch,
 } from "./search";
-export { buildSearchFixtureExport, type SearchFixtureExport } from "./searchExport";
 export { minimizeFailingScenario } from "./shrinker";
 export { simulateScenario } from "./simulator";
 export type {

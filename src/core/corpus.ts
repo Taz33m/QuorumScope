@@ -102,6 +102,16 @@ export interface RunCorpusOptions {
   checkFileCoverage?: boolean;
 }
 
+export interface CorpusFixtureCandidateValidation {
+  ok: boolean;
+  scenarioHash?: string;
+  checkedProtocols: ProtocolName[];
+  manifestErrors: string[];
+  scenarioErrors: string[];
+  outcomeIssues: CorpusIssue[];
+  issues: string[];
+}
+
 export function defaultCorpusManifestPath(): string {
   return resolve(process.cwd(), "examples", corpusManifestFileName);
 }
@@ -219,7 +229,14 @@ export function runCorpus(options: RunCorpusOptions = {}): CorpusRunResult {
 export function runCorpusEntry(entry: CorpusManifestEntry, baseDir = resolve(process.cwd(), "examples")): CorpusFixtureResult {
   const fixturePath = resolve(baseDir, entry.fixture);
   const parsed = JSON.parse(readFileSync(fixturePath, "utf-8")) as unknown;
-  const validation = validateScenario(parsed);
+  return runCorpusEntryScenario(entry, parsed);
+}
+
+export function runCorpusEntryScenario(
+  entry: CorpusManifestEntry,
+  scenarioValue: unknown,
+): CorpusFixtureResult {
+  const validation = validateScenario(scenarioValue);
   if (!validation.ok) {
     return {
       entry,
@@ -233,8 +250,8 @@ export function runCorpusEntry(entry: CorpusManifestEntry, baseDir = resolve(pro
       ok: false,
     };
   }
-  assertValidScenario(parsed, entry.fixture);
-  const scenario = parsed;
+  assertValidScenario(scenarioValue, entry.fixture);
+  const scenario = scenarioValue;
   const results = entry.protocols.map((protocol) =>
     evaluateProtocolExpectation(entry, protocol, scenario, mustGetExpectation(entry, protocol)),
   );
@@ -246,6 +263,41 @@ export function runCorpusEntry(entry: CorpusManifestEntry, baseDir = resolve(pro
     validationErrors: [],
     issues: [],
     ok: results.every((result) => result.mismatches.length === 0),
+  };
+}
+
+export function validateCorpusFixtureCandidate(
+  entry: CorpusManifestEntry,
+  scenarioValue: unknown,
+): CorpusFixtureCandidateValidation {
+  const manifest = { version: 1, fixtures: [entry] };
+  const manifestValidation = validateCorpusManifest(manifest);
+  const scenarioValidation = validateScenario(scenarioValue);
+  let scenarioHash: string | undefined;
+  let checkedProtocols: ProtocolName[] = [];
+  let outcomeIssues: CorpusIssue[] = [];
+
+  if (manifestValidation.ok && scenarioValidation.ok) {
+    const result = runCorpusEntryScenario(entry, scenarioValue);
+    scenarioHash = result.scenarioHash;
+    checkedProtocols = result.results.map((protocol) => protocol.protocol);
+    outcomeIssues = result.results.flatMap((protocol) => protocol.issues);
+  }
+
+  const issues = [
+    ...manifestValidation.errors.map((message) => `manifest: ${message}`),
+    ...scenarioValidation.errors.map((message) => `scenario: ${message}`),
+    ...outcomeIssues.map(formatCorpusIssue),
+  ];
+
+  return {
+    ok: issues.length === 0,
+    scenarioHash,
+    checkedProtocols,
+    manifestErrors: manifestValidation.errors,
+    scenarioErrors: scenarioValidation.errors,
+    outcomeIssues,
+    issues,
   };
 }
 
@@ -543,6 +595,11 @@ function makeIssue(
     expected,
     actual,
   };
+}
+
+function formatCorpusIssue(issue: CorpusIssue): string {
+  const protocol = issue.protocol ? `${issue.protocol}: ` : "";
+  return `${issue.fixtureId} ${protocol}${issue.message}`;
 }
 
 export function fixtureDisplayName(entry: CorpusManifestEntry): string {

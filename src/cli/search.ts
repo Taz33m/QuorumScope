@@ -1,5 +1,4 @@
 import {
-  buildSearchFixtureExport,
   defaultSearchConfig,
   reproductionCommand,
   runAdversarialSearch,
@@ -7,6 +6,7 @@ import {
   type ProtocolName,
   type SearchConfig,
 } from "../core";
+import { buildSearchFixtureExport } from "../core/searchExport";
 
 const { config, exportFixture } = parseArgs(process.argv.slice(2));
 const result = runAdversarialSearch(config);
@@ -28,7 +28,10 @@ if (exportFixture) {
     );
     process.exitCode = 1;
   } else {
-    console.log(JSON.stringify({ ok: true, ...fixture }, null, 2));
+    console.log(JSON.stringify({ ok: fixture.promotionCheck.ok, ...fixture }, null, 2));
+    if (!fixture.promotionCheck.ok) {
+      process.exitCode = 1;
+    }
   }
 } else {
   printSearchReport();

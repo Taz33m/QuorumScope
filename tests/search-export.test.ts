@@ -4,12 +4,11 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  buildSearchFixtureExport,
   checkLinearizability,
   runAdversarialSearch,
   simulateScenario,
-  type SearchFixtureExport,
 } from "../src/core";
+import { buildSearchFixtureExport, type SearchFixtureExport } from "../src/core/searchExport";
 
 describe("search fixture export", () => {
   it("builds a corpus-ready minimized fixture from the default search failure", () => {
@@ -27,6 +26,11 @@ describe("search fixture export", () => {
     });
     expect(exported.source.reproductionCommand).toContain("--seed 143");
     expect(exported.scenario).toEqual(saved);
+    expect(exported.promotionCheck).toMatchObject({
+      ok: true,
+      checkedProtocols: ["unsafe", "quorum"],
+      issues: [],
+    });
     expect(exported.manifestEntry).toMatchObject({
       id: "search-143-minimized",
       fixture: "search-143-minimized.json",
@@ -71,6 +75,7 @@ describe("search fixture export", () => {
 
     expect(exported.ok).toBe(true);
     expect(exported.manifestEntry.fixture).toBe("search-143-minimized.json");
+    expect(exported.promotionCheck.ok).toBe(true);
 
     const unsafe = simulateScenario(exported.scenario, "unsafe");
     const quorum = simulateScenario(exported.scenario, "quorum");

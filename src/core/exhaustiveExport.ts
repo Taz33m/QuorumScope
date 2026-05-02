@@ -1,11 +1,16 @@
 import { analyzeScenario } from "./analyze";
 import { summarizeWitness } from "./explanations";
+import { validateCorpusFixtureCandidate } from "./corpus";
 import type {
   ExhaustiveCaseEvaluation,
   ExhaustiveConfig,
   ExhaustiveResult,
 } from "./exhaustive";
-import type { CorpusManifestEntry, CorpusProtocolExpectation } from "./corpus";
+import type {
+  CorpusFixtureCandidateValidation,
+  CorpusManifestEntry,
+  CorpusProtocolExpectation,
+} from "./corpus";
 import type { ProtocolName, Scenario } from "./types";
 
 export interface ExhaustiveFixtureExport {
@@ -21,6 +26,7 @@ export interface ExhaustiveFixtureExport {
   };
   scenario: Scenario;
   manifestEntry: CorpusManifestEntry;
+  promotionCheck: CorpusFixtureCandidateValidation;
   witnessSummary?: string;
 }
 
@@ -40,6 +46,30 @@ export function buildExhaustiveFixtureExport(
   const quorum = analyzeScenario(found.scenario, "quorum");
   const fixtureId = `exhaustive-${found.caseId}`;
   const fixture = `${fixtureId}.json`;
+  const scenario: Scenario = {
+    ...found.scenario,
+    description: found.unsafe.violation
+      ? "First stale-read witness discovered by the default tiny bounded exhaustive explorer. This fixture preserves the enumerated case for corpus replay."
+      : "Scenario enumerated by the tiny bounded exhaustive explorer. This fixture preserves the enumerated case for corpus replay.",
+  };
+  const manifestEntry: CorpusManifestEntry = {
+    id: fixtureId,
+    title: found.unsafe.violation
+      ? `Exhaustive ${found.caseId} counterexample`
+      : `Exhaustive ${found.caseId} replay`,
+    fixture,
+    scenarioType: found.unsafe.violation
+      ? "exhaustive-counterexample"
+      : "exhaustive-safe-history",
+    protocols: ["unsafe", "quorum"],
+    expected: {
+      unsafe: expectedFor("unsafe", unsafe),
+      quorum: expectedFor("quorum", quorum),
+    },
+    notes:
+      "Exported from the bounded exhaustive explorer. Save scenario as the fixture path and add this entry to examples/corpus.manifest.json to promote it into the replay corpus.",
+    tags: tagsFor(found),
+  };
 
   return {
     source: {
@@ -52,30 +82,9 @@ export function buildExhaustiveFixtureExport(
       seed: result.config.seed,
       includeConcurrent: result.config.includeConcurrent,
     },
-    scenario: {
-      ...found.scenario,
-      description: found.unsafe.violation
-        ? "First stale-read witness discovered by the default tiny bounded exhaustive explorer. This fixture preserves the enumerated case for corpus replay."
-        : "Scenario enumerated by the tiny bounded exhaustive explorer. This fixture preserves the enumerated case for corpus replay.",
-    },
-    manifestEntry: {
-      id: fixtureId,
-      title: found.unsafe.violation
-        ? `Exhaustive ${found.caseId} counterexample`
-        : `Exhaustive ${found.caseId} replay`,
-      fixture,
-      scenarioType: found.unsafe.violation
-        ? "exhaustive-counterexample"
-        : "exhaustive-safe-history",
-      protocols: ["unsafe", "quorum"],
-      expected: {
-        unsafe: expectedFor("unsafe", unsafe),
-        quorum: expectedFor("quorum", quorum),
-      },
-      notes:
-        "Exported from the bounded exhaustive explorer. Save scenario as the fixture path and add this entry to examples/corpus.manifest.json to promote it into the replay corpus.",
-      tags: tagsFor(found),
-    },
+    scenario,
+    manifestEntry,
+    promotionCheck: validateCorpusFixtureCandidate(manifestEntry, scenario),
     witnessSummary: summarizeWitness(unsafe.verdict.witness),
   };
 }

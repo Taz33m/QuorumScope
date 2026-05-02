@@ -1,5 +1,4 @@
 import {
-  buildExhaustiveFixtureExport,
   defaultExhaustiveConfig,
   findExhaustiveCase,
   runBoundedExhaustive,
@@ -7,6 +6,7 @@ import {
   type ExhaustiveConfig,
   type ExhaustiveProtocolSummary,
 } from "../core";
+import { buildExhaustiveFixtureExport } from "../core/exhaustiveExport";
 
 const { config, json, showCase, exportFixture } = parseArgs(process.argv.slice(2));
 const result = runBoundedExhaustive(config);
@@ -29,7 +29,10 @@ if (exportFixture) {
     );
     process.exitCode = 1;
   } else {
-    console.log(JSON.stringify({ ok: true, ...fixture }, null, 2));
+    console.log(JSON.stringify({ ok: fixture.promotionCheck.ok, ...fixture }, null, 2));
+    if (!fixture.promotionCheck.ok) {
+      process.exitCode = 1;
+    }
   }
 } else if (json) {
   console.log(

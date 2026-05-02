@@ -4,12 +4,14 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  buildExhaustiveFixtureExport,
   checkLinearizability,
   runBoundedExhaustive,
   simulateScenario,
-  type ExhaustiveFixtureExport,
 } from "../src/core";
+import {
+  buildExhaustiveFixtureExport,
+  type ExhaustiveFixtureExport,
+} from "../src/core/exhaustiveExport";
 
 describe("exhaustive fixture export", () => {
   it("builds a corpus-ready fixture from the default first violation", () => {
@@ -31,6 +33,11 @@ describe("exhaustive fixture export", () => {
       "npm run exhaustive -- --case ex-000023 --max-ops 3 --topology 2 --clients 2 --seed 7001 --show",
     );
     expect(exported.scenario).toEqual(saved);
+    expect(exported.promotionCheck).toMatchObject({
+      ok: true,
+      checkedProtocols: ["unsafe", "quorum"],
+      issues: [],
+    });
     expect(exported.manifestEntry).toMatchObject({
       id: "exhaustive-ex-000023",
       fixture: "exhaustive-ex-000023.json",
@@ -94,6 +101,7 @@ describe("exhaustive fixture export", () => {
 
     expect(exported.ok).toBe(true);
     expect(exported.manifestEntry.fixture).toBe("exhaustive-ex-000023.json");
+    expect(exported.promotionCheck.ok).toBe(true);
 
     const unsafe = simulateScenario(exported.scenario, "unsafe");
     const quorum = simulateScenario(exported.scenario, "quorum");

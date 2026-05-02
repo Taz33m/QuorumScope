@@ -7,6 +7,7 @@ import {
   collectCorpusIssues,
   loadCorpusManifest,
   runCorpus,
+  validateCorpusFixtureCandidate,
   validateCorpusManifest,
   validateManifestFileCoverage,
   type CorpusManifest,
@@ -98,6 +99,43 @@ describe("manifest-driven regression corpus", () => {
       actual: "violation",
     });
     expect(collectCorpusIssues(result)[0]?.code).toBe("expectation.verdict");
+  });
+
+  it("validates corpus candidate scenarios before fixture promotion", () => {
+    const manifest = loadCorpusManifest();
+    const entry = manifest.fixtures.find((fixture) => fixture.id === "search-143-minimized")!;
+    const scenario = JSON.parse(
+      readFileSync(join(process.cwd(), "examples", entry.fixture), "utf-8"),
+    );
+
+    const valid = validateCorpusFixtureCandidate(entry, scenario);
+    expect(valid).toMatchObject({
+      ok: true,
+      checkedProtocols: ["unsafe", "quorum"],
+      manifestErrors: [],
+      scenarioErrors: [],
+      outcomeIssues: [],
+      issues: [],
+    });
+    expect(valid.scenarioHash).toHaveLength(12);
+
+    const driftedEntry = cloneManifest({ version: 1, fixtures: [entry] }).fixtures[0]!;
+    driftedEntry.expected.quorum = {
+      ...driftedEntry.expected.quorum!,
+      unavailableOperations: 99,
+    };
+    const drifted = validateCorpusFixtureCandidate(driftedEntry, scenario);
+
+    expect(drifted.ok).toBe(false);
+    expect(drifted.outcomeIssues[0]).toMatchObject({
+      code: "expectation.unavailable-operations",
+      fixtureId: "search-143-minimized",
+      fixture: "search-143-minimized.json",
+      protocol: "quorum",
+      expected: 99,
+      actual: 1,
+    });
+    expect(drifted.issues[0]).toContain("expected 99 unavailable operations");
   });
 
   it("rejects malformed manifests and unmanifested public JSON fixtures", () => {

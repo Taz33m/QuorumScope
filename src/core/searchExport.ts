@@ -1,13 +1,18 @@
 import { analyzeScenario } from "./analyze";
 import { summarizeWitness } from "./explanations";
 import { reproductionCommand } from "./search";
+import { validateCorpusFixtureCandidate } from "./corpus";
 import type {
   AdversarialSearchResult,
   ProtocolName,
   Scenario,
   SearchAttempt,
 } from "./types";
-import type { CorpusManifestEntry, CorpusProtocolExpectation } from "./corpus";
+import type {
+  CorpusFixtureCandidateValidation,
+  CorpusManifestEntry,
+  CorpusProtocolExpectation,
+} from "./corpus";
 
 export interface SearchFixtureExport {
   source: {
@@ -19,6 +24,7 @@ export interface SearchFixtureExport {
   };
   scenario: Scenario;
   manifestEntry: CorpusManifestEntry;
+  promotionCheck: CorpusFixtureCandidateValidation;
   witnessSummary?: string;
 }
 
@@ -38,6 +44,25 @@ export function buildSearchFixtureExport(
       ? `search-${failure.seed}-minimized`
       : `search-${failure.seed}-${failure.attempt}-minimized`;
   const fixture = `${fixtureId}.json`;
+  const scenario: Scenario = {
+    ...minimized,
+    description:
+      "Minimized first-ack stale-read counterexample discovered by the bounded adversarial search. This is a replay fixture, not an exhaustive proof.",
+  };
+  const manifestEntry: CorpusManifestEntry = {
+    id: fixtureId,
+    title: `Minimized adversarial search failure ${failure.seed}:${failure.attempt}`,
+    fixture,
+    scenarioType: "generated-minimized-counterexample",
+    protocols: ["unsafe", "quorum"],
+    expected: {
+      unsafe: expectedFor("unsafe", unsafe),
+      quorum: expectedFor("quorum", quorum),
+    },
+    notes:
+      "Exported from adversarial search. Save scenario as the fixture path and add this entry to examples/corpus.manifest.json to promote it into the replay corpus.",
+    tags: ["generated", "minimized", "stale-read", "partition", "counterexample"],
+  };
 
   return {
     source: {
@@ -47,25 +72,9 @@ export function buildSearchFixtureExport(
       originalSteps: failure.scenario.steps.length,
       minimizedSteps: minimized.steps.length,
     },
-    scenario: {
-      ...minimized,
-      description:
-        "Minimized first-ack stale-read counterexample discovered by the bounded adversarial search. This is a replay fixture, not an exhaustive proof.",
-    },
-    manifestEntry: {
-      id: fixtureId,
-      title: `Minimized adversarial search failure ${failure.seed}:${failure.attempt}`,
-      fixture,
-      scenarioType: "generated-minimized-counterexample",
-      protocols: ["unsafe", "quorum"],
-      expected: {
-        unsafe: expectedFor("unsafe", unsafe),
-        quorum: expectedFor("quorum", quorum),
-      },
-      notes:
-        "Exported from adversarial search. Save scenario as the fixture path and add this entry to examples/corpus.manifest.json to promote it into the replay corpus.",
-      tags: ["generated", "minimized", "stale-read", "partition", "counterexample"],
-    },
+    scenario,
+    manifestEntry,
+    promotionCheck: validateCorpusFixtureCandidate(manifestEntry, scenario),
     witnessSummary: summarizeWitness(unsafe.verdict.witness),
   };
 }
