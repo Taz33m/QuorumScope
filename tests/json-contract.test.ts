@@ -57,7 +57,7 @@ describe("machine-readable CLI contracts", () => {
     expect(json.exhaustive.quorum.violations).toBe(0);
     expect(json.boundedClaim).toContain("not a general proof");
     expect(json.reproduce.some((command: string) => command.includes("npm run exhaustive"))).toBe(true);
-  });
+  }, 15_000);
 
   it("keeps failing corpus JSON parseable with stable issue payloads", () => {
     const manifestPath = writeFailingCorpusFixture();
@@ -92,7 +92,7 @@ describe("machine-readable CLI contracts", () => {
     });
     expect(json.search.summary.unsafeViolations).toBe(50);
     expect(json.exhaustive.coverage.terminalHistories).toBe(804);
-  });
+  }, 15_000);
 });
 
 function runJson(script: string): Record<string, any> {

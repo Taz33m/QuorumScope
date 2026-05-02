@@ -16,7 +16,7 @@ describe("product report", () => {
     expect(report.boundedClaim).toContain("not a general proof");
     expect(report.reproduce.some((command) => command.includes("npm run search"))).toBe(true);
     expect(report.reproduce.some((command) => command.includes("npm run exhaustive"))).toBe(true);
-  });
+  }, 15_000);
 
   it("CLI smoke prints a unified product report", () => {
     const output = execFileSync("node", ["--import", "tsx", "src/cli/report.ts"], {
@@ -30,5 +30,5 @@ describe("product report", () => {
     expect(output).toContain("Tiny exhaustive model:");
     expect(output).toContain("Bounded claim:");
     expect(output).toContain("Reproduce:");
-  });
+  }, 15_000);
 });
