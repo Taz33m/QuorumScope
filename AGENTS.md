@@ -14,7 +14,8 @@ This repo is for technically impressive build work, not generic apps. Favor narr
 ## Repo Hygiene
 
 - Internal research, PRDs, strategy, scratch notes, and demo planning live only under `.codex-work/`.
-- Public docs should stay minimal: `README.md`, this file, and only a concise `docs/ARCHITECTURE.md` if the architecture truly needs it.
+- Public docs should stay minimal: `README.md`, this file, the artifact report under `paper/`, and only a concise `docs/ARCHITECTURE.md` if the architecture truly needs it.
+- Generated video worktrees, raw frames, local voice environments, and other media production scratch should not be tracked.
 - Do not expose internal hackathon, judge, sponsor, or scouting strategy language in public-facing files.
 - No fake citations, fake data, fake benchmarks, fake users, fake metrics, or fake API integrations.
 - Do not add public Markdown sprawl.

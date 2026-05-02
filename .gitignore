@@ -3,6 +3,7 @@ node_modules/
 dist/
 build/
 coverage/
+video/
 .env
 .env.*
 !.env.example

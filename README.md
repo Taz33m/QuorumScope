@@ -1,252 +1,156 @@
 # QuorumScope
 
-QuorumScope is a deterministic consistency-testing workbench for a single replicated register. It can replay curated counterexamples, generate bounded adversarial partition schedules, exhaustively enumerate a tiny finite scenario model, shrink discovered failures, validate a regression corpus, and check whether every successful read is linearizable.
+QuorumScope is a deterministic consistency-testing workbench for a replicated single-key register under network partitions. It compares an intentionally unsafe first-ack protocol with a majority quorum protocol, then makes the resulting histories inspectable through a simulator, linearizability checker, counterexample shrinker, regression corpus, tiny exhaustive explorer, CLI report, and React trace workbench.
 
-See `paper/quorumscope.pdf` for the artifact technical report (`paper/quorumscope.tex` is the source).
+- Demo video: [youtu.be/8FtiTD_bMTE](https://youtu.be/8FtiTD_bMTE)
+- Technical report: [paper/quorumscope.pdf](paper/quorumscope.pdf)
+- Report source: [paper/quorumscope.tex](paper/quorumscope.tex)
 
 ## Technical Thesis
 
-Network partitions create histories that can look locally successful while violating global correctness. QuorumScope makes that failure inspectable: first-ack replication can accept a write on one partition and later return a stale successful read from another. The quorum protocol runs the same generated schedule and, under this model, avoids the stale read by making minority operations unavailable.
+A replicated register can look healthy from a local client while violating global consistency. Under a partition, first-ack can accept a majority-side write and later return a stale successful read from a minority-side replica. QuorumScope reproduces that failure, checks it against linearizability, minimizes the counterexample, and compares the same schedule against quorum, where the minority-side operation becomes unavailable instead of stale.
 
-## Why This Is Hard
+The bounded claim is deliberately narrow: quorum produced zero linearizability violations in the declared corpora under the implemented single-register partition model. This is not a proof for arbitrary distributed systems.
 
-The hard part is not drawing nodes. The engine must model replica state, partition reachability, message timing, protocol acknowledgement thresholds, operation histories, and a register specification. The checker then searches for a legal sequential order that preserves real-time operation order. If none exists, it reports a concrete witness.
+## What Is Implemented
 
-## What The Demo Shows
+- Deterministic partition simulator for replica state, reachability, operation timing, commits, aborts, and unavailable operations.
+- Two register protocols: unsafe first-ack and simplified majority quorum.
+- Backtracking single-register linearizability checker with real-time precedence constraints, legal-order witnesses, stale-read witnesses, and oracle diagnostics.
+- Seeded adversarial search over bounded partition schedules, including overlapping operation batches.
+- Greedy counterexample shrinker that preserves checker failure.
+- Manifest-driven regression corpus with fixture validation, expected outcomes, provenance hashes, and reproduction commands.
+- Tiny bounded exhaustive explorer for a declared finite scenario grammar.
+- Unified product report for corpus, search, exhaustive coverage, protocol comparison, and bounded claims.
+- Vite/React workbench for replaying traces, inspecting oracle diagnostics, loading minimized failures, and comparing protocols.
 
-The default UI shows both paths:
+## Why This Is Technically Interesting
 
-1. The curated `split-brain-stale-read` replay.
-2. The adversarial search panel, which explores seeded schedules and finds a first-ack stale-read counterexample.
-3. The minimized failing scenario loaded into the same trace workbench.
-4. A quorum comparison over the same generated scenario.
+The project builds the consistency failure rather than describing it. The same scenario model feeds the simulator, checker, shrinker, corpus, CLI, benchmark, exhaustive explorer, and browser workbench. A reviewer can rerun the exact seed or fixture, inspect the stale-read witness, and see where safety and availability diverge.
 
-The CLI adds a bounded exhaustive explorer for a much smaller model. It is intentionally separate from the UI because its main artifact is coverage accounting, not animation.
+The hard part is the evidence pipeline:
 
-For a single plain-text summary of the verification surface, run:
+1. Generate or load a bounded partition schedule.
+2. Execute the same schedule under first-ack and quorum.
+3. Convert successful operations into a history.
+4. Check whether any sequential register order preserves real-time order.
+5. Return a legal witness for safe histories or a stale-read witness for unsafe ones.
+6. Shrink failures into minimal replayable counterexamples.
+7. Preserve important cases in a regression corpus.
+8. Report exactly what was checked and what was not.
 
-```bash
-npm run report
-```
+## Current Results
 
-## Architecture
+These numbers are produced by the local commands documented below.
 
-- `src/core/simulator.ts`: deterministic event simulator for partitions, concurrent operation batches, reads, writes, acknowledgements, commits, and aborts.
-- `src/core/protocols.ts`: unsafe first-ack register and quorum-commit register.
-- `src/core/linearizability.ts`: backtracking single-register linearizability checker using `BigInt` state masks.
-- `src/core/shrinker.ts`: greedy counterexample reducer over scenario steps.
-- `src/core/search.ts`: seeded adversarial scenario generator, search runner, shrink integration, and protocol comparison.
-- `src/core/exhaustive.ts`: tiny bounded scenario-space explorer with coverage reporting.
-- `src/core/corpus.ts`: manifest-driven regression corpus loader, scenario validation, and expected-outcome checking.
-- `src/core/report.ts`: unified product report over corpus, adversarial search, and exhaustive exploration.
-- `src/core/benchmark.ts`: deterministic seeded benchmark generator for 2/3 partition stale-read probes.
-- `src/cli`: CLI demo, manifest corpus replay, report, product verification, exhaustive explorer, search, and benchmark commands.
-- `src/App.tsx`: Vite React trace workbench over the core engine output.
-- `examples/`: runnable scenario fixtures plus `corpus.manifest.json` expectations.
-
-## Core Algorithm
-
-The checker filters successful operations, builds real-time predecessor constraints, and performs DFS over candidate sequential orders. Writes update the abstract register value; reads are legal only when their observed value matches the current abstract value. Safe histories return a legal sequential witness and final register value. The search memoizes `(placed operations, current value)` states with `BigInt` masks, so histories above 31 operations do not alias.
-
-## Adversarial Search
-
-The search engine uses a seeded generator to produce ordinary `Scenario` objects. Each scenario is small and replayable: exact-cover partitions, bounded operations, deterministic waits, optional overlapping client batches, majority-side writes, minority-side reads, and a few extra read/write/heal steps. The runner executes the same scenario under first-ack and quorum, checks both histories, and shrinks any failing first-ack counterexample with the same simulator/checker oracle used by the tests.
-
-The current generator is adversarially biased toward quorum-boundary split-brain schedules. It is a bounded search/regression harness, not an exhaustive model checker.
-
-## Tiny Exhaustive Explorer
-
-```bash
-npm run exhaustive
-```
-
-The exhaustive command enumerates every scenario inside a deliberately tiny finite model:
-
-- 3 replicas
-- 2 clients
-- one key
-- `v0` initial value and bounded generated writes
-- healed topology plus canonical 1/2 partitions
-- up to 3 returned operations
-- up to 2 topology changes
-- optional one overlapping read/read, read/write, or write/write batch
-- deterministic simulator timing per enumerated case
-
-Current local output for the default model:
-
-| Protocol | Terminal histories | Violations | Stale-read witnesses | Unavailable ops |
+| Evidence surface | Cases | First-ack violations | Quorum violations | Quorum unavailable |
 | --- | ---: | ---: | ---: | ---: |
-| First-ack | 1000 | 144 | 126 | 0 |
-| Quorum | 1000 | 0 | 0 | 1064 |
+| Regression corpus | 4 fixtures | 3/4 | 0/4 | 4 |
+| Adversarial search | 50 seeds | 50/50 | 0/50 | 155 |
+| Benchmark probe | 50 runs | 50/50 | 0/50 | 50 |
+| Tiny exhaustive model | 1000 histories | 144 | 0 | 1064 |
 
-This is exhaustive only over the declared scenario grammar and bounds. It does not enumerate arbitrary message timings, arbitrary client schedules, real network behavior, or larger systems.
+The exhaustive result is exhaustive only for the declared tiny model: 3 replicas, 2 clients, one key, up to 3 returned operations, up to 2 topology changes, healed topology plus canonical 1/2 partitions, deterministic simulator timing, and optional overlapping operation batches.
 
-Adversarial search and exhaustive exploration answer different questions. Search samples larger biased schedules and quickly finds a known failure class. The exhaustive explorer checks every case in a tiny finite model and reports the denominator.
-
-## Run
+## Quick Start
 
 ```bash
 npm ci
+npm run verify:product
 npm run dev
 ```
 
 Open `http://127.0.0.1:5173/`.
 
-## Test
+## Core Commands
 
 ```bash
 npm test
-npm run verify:product
-npm run report
-npm run smoke:ui
 npm run typecheck
 npm run build
-npm run corpus
-npm run exhaustive
-```
-
-`npm run verify:product` runs the main trust checks locally: unit tests, typecheck, production build, UI smoke, demo, corpus, search comparison, exhaustive explorer, and report. `npm run smoke:ui` verifies the built workbench shell and core technical surfaces; it is not a replacement for interactive browser QA.
-
-## CLI Demo
-
-```bash
+npm run verify:product
+npm run report
 npm run demo
 npm run corpus
-npm run demo -- examples/split-brain-stale-read.json
-```
-
-Expected core result:
-
-- First-ack: `NOT LINEARIZABLE`; witness says `op3` returned `v0` after `op2` completed with `v1`.
-- Quorum: `LINEARIZABLE`; the same minority read is `unavailable`.
-
-## Benchmark
-
-```bash
-npm run bench
-npm run bench -- 5
-```
-
-The benchmark includes the original deterministic 2/3 probe and the adversarial search corpus. Current local output for 50 seeded variants:
-
-| Protocol | Violations | Stale-read witnesses | Unavailable ops |
-| --- | ---: | ---: | ---: |
-| First-ack | 50 | 50 | 0 |
-| Quorum | 0 | 0 | 50 |
-
-The adversarial search corpus for seed `143`, 50 schedules currently finds first-ack violations and quorum unavailability with zero quorum violations under the modeled assumptions. This is not a general proof.
-
-## Search CLI
-
-```bash
 npm run search
-npm run search:first-ack
 npm run search:compare
-npm run search -- --seed 143 --seeds 1 --protocol compare --nodes 5 --ops 8 --clients 3 --read-ratio 0.55 --chaos 0.75 --concurrency 0.45 --shrink
 npm run exhaustive
+npm run bench
+npm run smoke:ui
+```
+
+`npm run verify:product` runs the main trust checks: tests, typecheck, production build, UI smoke, curated demo, corpus replay, search comparison, exhaustive explorer, and product report.
+
+## Reproducing The Main Failure
+
+The default adversarial search starts at seed `143` and finds a first-ack stale-read counterexample.
+
+```bash
+npm run search -- --seed 143 --seeds 1 --protocol compare --nodes 5 --ops 8 --clients 3 --read-ratio 0.55 --chaos 0.75 --concurrency 0.45 --shrink
+```
+
+Expected result:
+
+- first-ack: `NOT LINEARIZABLE`
+- witness: a read returns `v0` after a completed write to a newer value
+- shrinker: generated failure reduces from 11 steps to 3
+- quorum comparison: zero violations, with unavailable minority-side operations reported
+
+The first stale-read witness from the tiny exhaustive explorer is reproducible with:
+
+```bash
 npm run exhaustive -- --case ex-000043 --max-ops 3 --topology 2 --clients 2 --seed 7001 --show
 ```
 
-Search output includes:
+## Repository Layout
 
-- search config
-- seeds explored
-- how many generated schedules included overlapping operations
-- first failing seed
-- original and minimized step count
-- stale-read witness
-- reproduction command
-- quorum comparison
-- bounded-search disclaimer
-
-Exhaustive output includes:
-
-- finite model bounds
-- prefixes explored
-- terminal histories checked
-- coverage buckets
-- first reported stale-read counterexample
-- minimized step count
-- reproduction command
-- bounded-claim disclaimer
-
-Example reproduction command:
-
-```bash
-npm run search -- --seed 143 --seeds 1 --protocol compare --nodes 5 --ops 8 --clients 3 --read-ratio 0.55 --chaos 0.75 --concurrency 0.45 --shrink
+```text
+src/core/        simulator, protocols, checker, search, shrinker, corpus, report
+src/cli/         demo, search, corpus, exhaustive, benchmark, report, verification CLIs
+src/App.tsx      React trace workbench
+examples/        replayable scenarios and corpus manifest
+tests/           deterministic unit, corpus, CLI, report, search, exhaustive, and smoke tests
+paper/           artifact technical report and compiled PDF
 ```
 
-## Regression Corpus
+Important modules:
 
-```bash
-npm run corpus
-```
+- `src/core/simulator.ts`: deterministic event simulator.
+- `src/core/protocols.ts`: first-ack and quorum register protocols.
+- `src/core/linearizability.ts`: DFS-based checker with `BigInt` state masks.
+- `src/core/search.ts`: seeded scenario generator, runner, shrink integration, and protocol comparison.
+- `src/core/exhaustive.ts`: tiny bounded exhaustive explorer.
+- `src/core/corpus.ts`: manifest validation and expected-outcome checking.
+- `src/core/report.ts`: unified product report.
 
-The corpus command reads `examples/corpus.manifest.json`, validates every listed scenario, verifies that all public scenario JSON files are listed, runs each fixture under the declared protocols, and checks actual outcomes against expected outcomes.
+## Workbench Demo Path
 
-Current corpus fixtures:
+1. Run `npm run dev`.
+2. Open `http://127.0.0.1:5173/`.
+3. Run adversarial search from the workbench.
+4. Inspect the first failing seed, minimized steps, reproduction command, and quorum comparison.
+5. Load the minimized failure into the trace replay.
+6. Jump to the violation and inspect the oracle diagnostics.
+7. Switch to quorum to see the same minority-side read become unavailable.
 
-| Fixture | Purpose |
-| --- | --- |
-| `split-brain-stale-read.json` | curated first-ack stale-read counterexample |
-| `search-143-minimized.json` | minimized counterexample saved from adversarial search |
-| `concurrent-safe-overlap.json` | overlapping read/write history that remains linearizable |
-| `exhaustive-ex-000043.json` | first stale-read witness from the default tiny exhaustive model |
+## Model Assumptions
 
-The expected bounded result is first-ack stale-read violations in the counterexample fixtures, zero quorum violations, and quorum unavailability reported where it prevents stale reads.
-
-## Product Report
-
-```bash
-npm run report
-```
-
-The report command is the quickest way to inspect the finished product surface. It aggregates:
-
-- manifest corpus replay and expectation matching
-- default adversarial search results
-- tiny exhaustive model coverage
-- protocol comparison
-- quorum unavailable-operation counts
-- reproduction commands for the saved corpus, first generated failure, and first exhaustive failure
-- one bounded-claim statement
-
-Current local report summary:
-
-| Surface | First-ack violations | Quorum violations | Quorum unavailable ops |
-| --- | ---: | ---: | ---: |
-| Corpus | 3/4 fixtures | 0/4 fixtures | 4 |
-| Adversarial search | 50/50 schedules | 0/50 schedules | 155 |
-| Tiny exhaustive model | 144/1000 histories | 0/1000 histories | 1064 |
-
-Bounded claim: no quorum linearizability violations were found in the declared corpus, default adversarial generated corpus, and tiny exhaustive model under current assumptions. This is not a general proof.
-
-## Browser Demo Path
-
-1. Start `npm run dev`.
-2. Use **Run Search** in the adversarial search panel.
-3. Inspect the first failing seed, minimized steps, reproduction command, and quorum comparison.
-4. Press **Load Failure** to replay the minimized counterexample in the existing workbench.
-5. Use **Violation** to jump to the stale read, then **Quorum** to compare the same operation under quorum semantics.
+- The object is a single-key register.
+- Partitions are modeled as reachability groups, not a real network stack.
+- Successful operations are checked for linearizability; unavailable operations are reported separately.
+- Quorum is a simplified majority register protocol, not Raft, Paxos, or a production consensus system.
+- The exhaustive explorer enumerates a tiny declared scenario grammar, not all possible distributed executions.
 
 ## Limitations
 
 - Single-key register only.
-- Five-node fixture layout in the UI.
-- No full Raft, Paxos, leader election, retries, anti-entropy, read repair, durable storage, message loss, or real networking.
-- The quorum protocol is a simplified prepare/commit register, not a production consensus protocol.
-- Scenarios can include overlapping operation batches, but QuorumScope does not exhaustively enumerate all possible concurrent schedules.
-- Search scenarios are bounded and adversarially biased; this is not exhaustive model checking.
-- The exhaustive explorer is exhaustive only inside the tiny declared scenario model; it does not enumerate arbitrary message timings or all possible distributed executions.
-- Quorum results mean “zero violations in the stated bounded corpus/model under the modeled assumptions,” not universal correctness.
-- The UI is a trace/search workbench, not a generic distributed-systems playground.
+- Simplified network and timing model.
+- No real networking, storage, durability, crash recovery, retries, read repair, leader election, Byzantine faults, Raft, or Paxos.
+- Search is bounded and adversarially biased.
+- Exhaustive exploration is complete only within the tiny declared finite model.
+- No claim of universal quorum correctness or formal verification of arbitrary systems.
+- The UI is a technical trace workbench, not a general distributed-systems playground.
 
-## Future Work
+## License
 
-- Add message drops, delayed commits, finer-grained schedule exploration, and read repair.
-- Add checker performance benchmarks over increasing history sizes.
-- Add exportable proof/trace artifacts.
-
-## What Makes This Technically Interesting
-
-QuorumScope builds and verifies the failure instead of describing it. The same deterministic scenarios feed the generator, simulator, CLI, tests, benchmark, shrinker, and browser replay. A reviewer can inspect the stale-read witness, rerun the seed locally, and see exactly where availability and safety diverge.
+MIT License. See [LICENSE](LICENSE).
