@@ -14,6 +14,7 @@ export {
   type ExhaustiveSearchComparison,
   type ExhaustiveViolation,
 } from "./exhaustive";
+export { buildExhaustiveFixtureExport, type ExhaustiveFixtureExport } from "./exhaustiveExport";
 export { fixtures, splitBrainStaleReadScenario } from "./fixtures";
 export { detailWitness, explainWitness, summarizeVerdict, summarizeWitness } from "./explanations";
 export { checkLinearizability } from "./linearizability";

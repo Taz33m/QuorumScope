@@ -1,4 +1,5 @@
 import {
+  buildExhaustiveFixtureExport,
   defaultExhaustiveConfig,
   findExhaustiveCase,
   runBoundedExhaustive,
@@ -7,10 +8,30 @@ import {
   type ExhaustiveProtocolSummary,
 } from "../core";
 
-const { config, json, showCase } = parseArgs(process.argv.slice(2));
+const { config, json, showCase, exportFixture } = parseArgs(process.argv.slice(2));
 const result = runBoundedExhaustive(config);
 
-if (json) {
+if (exportFixture) {
+  const fixture = buildExhaustiveFixtureExport(result, showCase);
+  if (!fixture) {
+    console.log(
+      JSON.stringify(
+        {
+          ok: false,
+          error: showCase
+            ? `Exhaustive case ${showCase} was not found under these bounds.`
+            : "No default first-ack violation found to export under these bounds.",
+          config: result.config,
+        },
+        null,
+        2,
+      ),
+    );
+    process.exitCode = 1;
+  } else {
+    console.log(JSON.stringify({ ok: true, ...fixture }, null, 2));
+  }
+} else if (json) {
   console.log(
     JSON.stringify(
       {
@@ -26,55 +47,58 @@ if (json) {
       2,
     ),
   );
-  process.exit(0);
+} else {
+  printExhaustiveReport();
 }
 
-console.log("QuorumScope bounded exhaustive explorer");
-console.log(
-  `Model: ${result.config.nodeCount} replicas, ${result.config.clientCount} clients, single key`,
-);
-console.log(
-  `Bounds: maxOperations=${result.config.maxOperations} maxTopologyChanges=${result.config.maxTopologyChanges} includeConcurrent=${result.config.includeConcurrent}`,
-);
-console.log("Topologies: healed plus canonical 1/2 partitions");
-console.log("Timing: deterministic simulator timing per enumerated case; message timings are not exhaustively enumerated");
-console.log("Protocols: first-ack, quorum");
-console.log("");
-
-printProtocol(result.unsafe);
-console.log("");
-printProtocol(result.quorum);
-
-console.log("");
-console.log("Coverage:");
-console.log(`- prefixes explored: ${result.coverage.prefixesExplored}`);
-console.log(`- terminal histories checked: ${result.coverage.terminalHistories}`);
-console.log(`- unique scenarios: ${result.coverage.uniqueScenarios}`);
-console.log(`- pruned prefixes: ${result.coverage.prunedPrefixes}`);
-console.log(`- concurrent schedules: ${result.coverage.concurrentSchedules}`);
-console.log(`- partition shapes: ${formatRecord(result.coverage.partitionShapes)}`);
-console.log(`- operation patterns: ${Object.keys(result.coverage.operationPatterns).length}`);
-
-console.log("");
-console.log("Adversarial comparison:");
-console.log(
-  `- default search: seeds=${result.searchComparison.seeds}, first-ack violations=${result.searchComparison.unsafeViolations}, quorum violations=${result.searchComparison.quorumViolations}, first failure seed=${result.searchComparison.firstFailureSeed ?? "none"}`,
-);
-console.log(`- same witness class: ${result.searchComparison.sameWitnessClass}`);
-console.log(`- ${result.searchComparison.note}`);
-
-console.log("");
-console.log("Bounded claim:");
-console.log(result.claim);
-
-if (showCase) {
-  const found = findExhaustiveCase(showCase, result.config);
+function printExhaustiveReport(): void {
+  console.log("QuorumScope bounded exhaustive explorer");
+  console.log(
+    `Model: ${result.config.nodeCount} replicas, ${result.config.clientCount} clients, single key`,
+  );
+  console.log(
+    `Bounds: maxOperations=${result.config.maxOperations} maxTopologyChanges=${result.config.maxTopologyChanges} includeConcurrent=${result.config.includeConcurrent}`,
+  );
+  console.log("Topologies: healed plus canonical 1/2 partitions");
+  console.log("Timing: deterministic simulator timing per enumerated case; message timings are not exhaustively enumerated");
+  console.log("Protocols: first-ack, quorum");
   console.log("");
-  console.log(`Case ${showCase}:`);
-  if (!found) {
-    console.log("not found under these bounds");
-  } else {
-    console.log(JSON.stringify(found.scenario, null, 2));
+
+  printProtocol(result.unsafe);
+  console.log("");
+  printProtocol(result.quorum);
+
+  console.log("");
+  console.log("Coverage:");
+  console.log(`- prefixes explored: ${result.coverage.prefixesExplored}`);
+  console.log(`- terminal histories checked: ${result.coverage.terminalHistories}`);
+  console.log(`- unique scenarios: ${result.coverage.uniqueScenarios}`);
+  console.log(`- pruned prefixes: ${result.coverage.prunedPrefixes}`);
+  console.log(`- concurrent schedules: ${result.coverage.concurrentSchedules}`);
+  console.log(`- partition shapes: ${formatRecord(result.coverage.partitionShapes)}`);
+  console.log(`- operation patterns: ${Object.keys(result.coverage.operationPatterns).length}`);
+
+  console.log("");
+  console.log("Adversarial comparison:");
+  console.log(
+    `- default search: seeds=${result.searchComparison.seeds}, first-ack violations=${result.searchComparison.unsafeViolations}, quorum violations=${result.searchComparison.quorumViolations}, first failure seed=${result.searchComparison.firstFailureSeed ?? "none"}`,
+  );
+  console.log(`- same witness class: ${result.searchComparison.sameWitnessClass}`);
+  console.log(`- ${result.searchComparison.note}`);
+
+  console.log("");
+  console.log("Bounded claim:");
+  console.log(result.claim);
+
+  if (showCase) {
+    const found = findExhaustiveCase(showCase, result.config);
+    console.log("");
+    console.log(`Case ${showCase}:`);
+    if (!found) {
+      console.log("not found under these bounds");
+    } else {
+      console.log(JSON.stringify(found.scenario, null, 2));
+    }
   }
 }
 
@@ -128,6 +152,7 @@ function parseArgs(args: string[]) {
   const config: Partial<ExhaustiveConfig> = {};
   let json = false;
   let showCase: string | undefined;
+  let exportFixture = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -148,6 +173,8 @@ function parseArgs(args: string[]) {
       config.includeConcurrent = false;
     } else if (arg === "--json") {
       json = true;
+    } else if (arg === "--export-fixture") {
+      exportFixture = true;
     } else if (arg === "--case" && next) {
       showCase = next;
       index += 1;
@@ -160,7 +187,7 @@ function parseArgs(args: string[]) {
     }
   }
 
-  return { config, json, showCase };
+  return { config, json, showCase, exportFixture };
 }
 
 function parseIntStrict(value: string, name: string): number {
@@ -187,6 +214,7 @@ Options:
   --seed <n>          Base deterministic simulator seed, default ${defaultExhaustiveConfig.seed}
   --no-concurrency    Disable one bounded overlapping operation batch
   --case <id> --show  Print a reproducible enumerated scenario
+  --export-fixture    Print JSON with an enumerated scenario and corpus manifest entry
   --json              Print machine-readable summary
   --help              Show this help
 `);
