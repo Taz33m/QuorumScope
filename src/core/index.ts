@@ -24,6 +24,7 @@ export {
   reproductionCommand,
   runAdversarialSearch,
 } from "./search";
+export { buildSearchFixtureExport, type SearchFixtureExport } from "./searchExport";
 export { minimizeFailingScenario } from "./shrinker";
 export { simulateScenario } from "./simulator";
 export type {
