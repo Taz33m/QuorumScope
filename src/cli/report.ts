@@ -1,4 +1,5 @@
 import { buildProductReport } from "../core/report";
+import { collectCorpusIssues } from "../core/corpus";
 
 if (process.argv.includes("--help")) {
   printHelpAndExit();
@@ -16,6 +17,7 @@ if (json) {
         corpus: {
           ok: report.corpus.ok,
           summary: report.corpus.summary,
+          issues: collectCorpusIssues(report.corpus),
           claim: report.corpus.claim,
         },
         search: {

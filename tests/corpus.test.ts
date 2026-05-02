@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  collectCorpusIssues,
   loadCorpusManifest,
   runCorpus,
   validateCorpusManifest,
@@ -87,6 +88,15 @@ describe("manifest-driven regression corpus", () => {
     expect(result.ok).toBe(false);
     expect(result.summary.mismatches).toBeGreaterThan(0);
     expect(result.fixtures[0]!.results[0]!.mismatches[0]).toContain("expected linearizable");
+    expect(result.fixtures[0]!.results[0]!.issues[0]).toMatchObject({
+      code: "expectation.verdict",
+      fixtureId: "split-brain-stale-read",
+      fixture: "split-brain-stale-read.json",
+      protocol: "unsafe",
+      expected: "linearizable",
+      actual: "violation",
+    });
+    expect(collectCorpusIssues(result)[0]?.code).toBe("expectation.verdict");
   });
 
   it("rejects malformed manifests and unmanifested public JSON fixtures", () => {

@@ -17,6 +17,24 @@ export interface CorpusProtocolExpectation {
   finalValue?: string;
 }
 
+export type CorpusIssueCode =
+  | "fixture.validation"
+  | "fixture.coverage"
+  | "expectation.verdict"
+  | "expectation.violation-kind"
+  | "expectation.unavailable-operations"
+  | "expectation.final-value";
+
+export interface CorpusIssue {
+  code: CorpusIssueCode;
+  fixtureId: string;
+  fixture: string;
+  message: string;
+  protocol?: ProtocolName;
+  expected?: string | number;
+  actual?: string | number;
+}
+
 export interface CorpusManifestEntry {
   id: string;
   title: string;
@@ -43,6 +61,7 @@ export interface CorpusProtocolResult {
   witnessSummary?: string;
   minimizedSteps?: number;
   mismatches: string[];
+  issues: CorpusIssue[];
   analysis: AnalysisResult;
 }
 
@@ -52,6 +71,7 @@ export interface CorpusFixtureResult {
   scenarioHash: string;
   results: CorpusProtocolResult[];
   validationErrors: string[];
+  issues: CorpusIssue[];
   ok: boolean;
 }
 
@@ -175,6 +195,9 @@ export function runCorpus(options: RunCorpusOptions = {}): CorpusRunResult {
       scenarioHash: "",
       results: [],
       validationErrors: coverageErrors,
+      issues: coverageErrors.map((message) =>
+        makeIssue("fixture.coverage", "__manifest_coverage__", corpusManifestFileName, message),
+      ),
       ok: false,
     });
   }
@@ -203,13 +226,16 @@ export function runCorpusEntry(entry: CorpusManifestEntry, baseDir = resolve(pro
       scenarioHash: "",
       results: [],
       validationErrors: validation.errors,
+      issues: validation.errors.map((message) =>
+        makeIssue("fixture.validation", entry.id, entry.fixture, message),
+      ),
       ok: false,
     };
   }
   assertValidScenario(parsed, entry.fixture);
   const scenario = parsed;
   const results = entry.protocols.map((protocol) =>
-    evaluateProtocolExpectation(protocol, scenario, mustGetExpectation(entry, protocol)),
+    evaluateProtocolExpectation(entry, protocol, scenario, mustGetExpectation(entry, protocol)),
   );
   return {
     entry,
@@ -217,8 +243,16 @@ export function runCorpusEntry(entry: CorpusManifestEntry, baseDir = resolve(pro
     scenarioHash: hashScenario(scenario),
     results,
     validationErrors: [],
+    issues: [],
     ok: results.every((result) => result.mismatches.length === 0),
   };
+}
+
+export function collectCorpusIssues(result: CorpusRunResult): CorpusIssue[] {
+  return result.fixtures.flatMap((fixture) => [
+    ...fixture.issues,
+    ...fixture.results.flatMap((protocol) => protocol.issues),
+  ]);
 }
 
 export function validateManifestFileCoverage(manifest: CorpusManifest, baseDir: string): string[] {
@@ -241,6 +275,7 @@ export function validateManifestFileCoverage(manifest: CorpusManifest, baseDir: 
 }
 
 function evaluateProtocolExpectation(
+  entry: CorpusManifestEntry,
   protocol: ProtocolName,
   scenario: Scenario,
   expected: CorpusProtocolExpectation,
@@ -250,24 +285,62 @@ function evaluateProtocolExpectation(
   const violationKind = analysis.verdict.witness?.type;
   const finalValue = analysis.verdict.finalValue;
   const unavailableOperations = analysis.metrics.unavailableOperations;
-  const mismatches: string[] = [];
+  const issues: CorpusIssue[] = [];
 
   if (expected.verdict !== verdict) {
-    mismatches.push(`expected ${expected.verdict}, got ${verdict}`);
+    issues.push(
+      makeIssue(
+        "expectation.verdict",
+        entry.id,
+        entry.fixture,
+        `expected ${expected.verdict}, got ${verdict}`,
+        protocol,
+        expected.verdict,
+        verdict,
+      ),
+    );
   }
   if (expected.violationKind && expected.violationKind !== violationKind) {
-    mismatches.push(`expected ${expected.violationKind} witness, got ${violationKind ?? "none"}`);
+    issues.push(
+      makeIssue(
+        "expectation.violation-kind",
+        entry.id,
+        entry.fixture,
+        `expected ${expected.violationKind} witness, got ${violationKind ?? "none"}`,
+        protocol,
+        expected.violationKind,
+        violationKind ?? "none",
+      ),
+    );
   }
   if (
     typeof expected.unavailableOperations === "number" &&
     expected.unavailableOperations !== unavailableOperations
   ) {
-    mismatches.push(
-      `expected ${expected.unavailableOperations} unavailable operations, got ${unavailableOperations}`,
+    issues.push(
+      makeIssue(
+        "expectation.unavailable-operations",
+        entry.id,
+        entry.fixture,
+        `expected ${expected.unavailableOperations} unavailable operations, got ${unavailableOperations}`,
+        protocol,
+        expected.unavailableOperations,
+        unavailableOperations,
+      ),
     );
   }
   if (expected.finalValue && expected.finalValue !== finalValue) {
-    mismatches.push(`expected final linearized value ${expected.finalValue}, got ${finalValue ?? "none"}`);
+    issues.push(
+      makeIssue(
+        "expectation.final-value",
+        entry.id,
+        entry.fixture,
+        `expected final linearized value ${expected.finalValue}, got ${finalValue ?? "none"}`,
+        protocol,
+        expected.finalValue,
+        finalValue ?? "none",
+      ),
+    );
   }
 
   return {
@@ -279,7 +352,8 @@ function evaluateProtocolExpectation(
     finalValue,
     witnessSummary: summarizeWitness(analysis),
     minimizedSteps: analysis.minimizedFailure?.scenario.steps.length,
-    mismatches,
+    mismatches: issues.map((issue) => issue.message),
+    issues,
     analysis,
   };
 }
@@ -459,6 +533,26 @@ function emptyScenario(id = "invalid"): Scenario {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function makeIssue(
+  code: CorpusIssueCode,
+  fixtureId: string,
+  fixture: string,
+  message: string,
+  protocol?: ProtocolName,
+  expected?: string | number,
+  actual?: string | number,
+): CorpusIssue {
+  return {
+    code,
+    fixtureId,
+    fixture,
+    message,
+    protocol,
+    expected,
+    actual,
+  };
 }
 
 export function fixtureDisplayName(entry: CorpusManifestEntry): string {

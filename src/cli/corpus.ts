@@ -1,4 +1,5 @@
 import {
+  collectCorpusIssues,
   fixtureDisplayName,
   runCorpus,
   type CorpusFixtureResult,
@@ -24,6 +25,7 @@ if (json) {
           fixtureCount: result.manifest.fixtures.length,
         },
         summary: result.summary,
+        issues: collectCorpusIssues(result),
         fixtures: result.fixtures.map((fixture) => ({
           id: fixture.entry.id,
           title: fixture.entry.title,
@@ -33,6 +35,7 @@ if (json) {
           scenarioHash: fixture.scenarioHash,
           ok: fixture.ok,
           validationErrors: fixture.validationErrors,
+          issues: fixture.issues,
           results: fixture.results.map((protocol) => ({
             protocol: protocol.protocol,
             verdict: protocol.verdict,
@@ -41,6 +44,7 @@ if (json) {
             finalValue: protocol.finalValue,
             minimizedSteps: protocol.minimizedSteps,
             mismatches: protocol.mismatches,
+            issues: protocol.issues,
           })),
         })),
         claim: result.claim,

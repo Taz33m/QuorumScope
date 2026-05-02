@@ -9,6 +9,7 @@ describe("machine-readable CLI contracts", () => {
     expect(json.ok).toBe(true);
     expect(json.manifest.version).toBe(1);
     expect(json.manifest.fixtureCount).toBe(3);
+    expect(json.issues).toEqual([]);
     expect(json.summary.expectedMatched).toBe(6);
     expect(json.summary.quorumViolations).toBe(0);
     expect(json.fixtures).toHaveLength(3);
@@ -23,6 +24,7 @@ describe("machine-readable CLI contracts", () => {
       verdict: "violation",
       violationKind: "stale-read",
       mismatches: [],
+      issues: [],
     });
   });
 
@@ -32,6 +34,7 @@ describe("machine-readable CLI contracts", () => {
     expect(json.schemaVersion).toBe(1);
     expect(json.ok).toBe(true);
     expect(json.corpus.summary.fixtures).toBe(3);
+    expect(json.corpus.issues).toEqual([]);
     expect(json.search.config.seed).toBe(143);
     expect(json.search.summary.unsafeViolations).toBe(50);
     expect(json.search.firstFailure.seed).toBe(143);
